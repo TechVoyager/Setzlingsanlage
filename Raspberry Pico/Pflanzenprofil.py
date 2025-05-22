@@ -1,0 +1,1 @@
+# Modul für Klassen zum Pflanzenprofil-Management

@@ -1,0 +1,1 @@
+# Modul für die serielle Kommunikation mit der Desktopanwendung
