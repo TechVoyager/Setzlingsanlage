@@ -21,4 +21,4 @@ t1 = threading.Thread(target=run_gui, args=[curVals, progVals, auto, availablePr
 t1.start()
 
 while t1.is_alive():
-    print(auto)
+    curVals[0] = input("Neue Temperatur: \n")

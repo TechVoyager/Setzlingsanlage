@@ -15,7 +15,7 @@ class GUI:
 
 
     @staticmethod
-    def datafield(parentFrame, descriptor: str, variable, unit: str, img: str, row: int):
+    def dataField(parentFrame: ttk.Frame, descriptor: str, variable, unit: str, img: str, row: int):
         # Template für ein Widget, welches einen Datenpunkt zusammen mit einer Beschreibung, Einheit und einem Bild darstellt
 
         # Der Pfad zum Bild wird relativ zum Pfad dieses Skripts bestimmt
@@ -34,6 +34,24 @@ class GUI:
         ttk.Label(dataframe, textvariable=variable, font=bigLabel).grid(column=1, row=1, sticky="w")
         ttk.Label(dataframe, text=unit, font=bigLabel).grid(column=2, row=1, sticky="w")
 
+    
+    @staticmethod
+    def dataInput(parentFrame: ttk.Frame, descriptor: str, variable, addInfo: str, enabled: bool = False):
+        # Template für ein Widget, welches einen veränderlichen Datenpunkt darstellt
+
+        dataFrame = ttk.Frame(parentFrame, padding="15 15 15 15", style="Card")
+        
+        ttk.Label(dataFrame, text=descriptor, font=smallText, padding="0 0 0 10").grid(column=0, row=0, columnspan=2, sticky="w")
+        entry = ttk.Entry(dataFrame, textvariable=variable, width=10)
+        entry.grid(column=0, row=1)
+        if enabled:
+            entry.config(state="normal")
+        else:
+            entry.config(state="disabled")
+        ttk.Label(dataFrame, text=addInfo, padding="5 0 0 0").grid(column=1, row=1)
+
+        return dataFrame
+
 
     def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant):
         self.__updateInterval = updateInterval
@@ -41,10 +59,6 @@ class GUI:
         # So liest die "update"-Funktion automatisch die neusten Werte, welche sie dann in das GUI schreibt.
         self.__curValues = curValues
         self.__progValues = progValues
-        # Variable für den Automatik- bzw. manuellen Modus
-        # Diese Variable wird entweder nicht als Referenz weitergegeben oder etwas anderes stimmt nicht. Auf jeden Fall verändert
-        # sich der Wert außerhalb des Threads nicht.
-        self.__auto = auto
         
         # Initialisierung des des Fensters
         self.root = tk.Tk()
@@ -52,10 +66,14 @@ class GUI:
 
         # Variablen müssen als tk-Variablen definiert werden, damit sie im Widget angezeigt werden können
         defVal = None
-        self._curTemperature = tk.IntVar(value=defVal)
-        self._curHumidity = tk.IntVar(value=defVal)
-        self._curMoisture = tk.IntVar(value=defVal)
-        self._curLightState = tk.StringVar(value="---")
+        self._curTemperature = tk.IntVar(self.root, value=defVal)
+        self._curHumidity = tk.IntVar(self.root, value=defVal)
+        self._curMoisture = tk.IntVar(self.root, value=defVal)
+        self._curLightState = tk.StringVar(self.root, value="---")
+        # Variable für den Automatik- bzw. manuellen Modus
+        # Diese Variable wird entweder nicht als Referenz weitergegeben oder etwas anderes stimmt nicht. Auf jeden Fall verändert
+        # sich der Wert außerhalb des Threads nicht.
+        self.__auto = tk.BooleanVar(self.root, value=True)
 
         # Diese Art von Styling kann erst nach Initialisierung vorgenommen werden
         # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
@@ -71,28 +89,30 @@ class GUI:
 
         # Überschriften-Bereich
         ttk.Label(mainframe, text="Monitor", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
-        ttk.Label(mainframe, text="Programm", font=bigLabel, padding=10).grid(column=2, row=0, columnspan=2, sticky="ew")
+        helperFrame = ttk.Frame(mainframe)
+        helperFrame.grid(column=2, row=0)
+        ttk.Label(helperFrame, text="Programm", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
         # Schalter für den Automatik bzw. Manuellen Modus
-        switchFrame = ttk.Frame(mainframe, padding=10)
+        switchFrame = ttk.Frame(helperFrame, padding=10)
         switchFrame.grid(column=4, row=0, sticky="e")
-        ttk.Label(switchFrame, text="Auto", padding="0 0 5 0").grid(column=1, row=0, sticky="e")
-        ttk.Checkbutton(switchFrame, text='Manuell', style='Switch', variable=self.__auto).grid(column=2, row=0, sticky="e")
+        ttk.Label(switchFrame, text="Manuell", padding="0 0 5 0").grid(column=1, row=0, sticky="e")
+        ttk.Checkbutton(switchFrame, text='Auto', style='Switch', variable=self.__auto).grid(column=2, row=0, sticky="e")
 
         # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
         monitorFrame = ttk.Frame(mainframe, padding=10)
         monitorFrame.grid(column=0, row=2)
-        self.datafield(monitorFrame, "Lufttemperatur:", self._curTemperature, "°C", "./imgs/dark_temp.png", 0)
+        self.dataField(monitorFrame, "Lufttemperatur:", self._curTemperature, "°C", "./imgs/dark_temp.png", 0)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=1)
-        self.datafield(monitorFrame, "Luftfeuchtigkeit:", self._curHumidity, "%", "./imgs/dark_luft.png", 2)
+        self.dataField(monitorFrame, "Luftfeuchtigkeit:", self._curHumidity, "%", "./imgs/dark_luft.png", 2)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=3)
-        self.datafield(monitorFrame, "Bodenfeuchtigkeit:", self._curMoisture, "%", "./imgs/dark_tropfen.png", 4)
+        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self._curMoisture, "%", "./imgs/dark_tropfen.png", 4)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=5)
-        self.datafield(monitorFrame, "Beleuchtung:", self._curLightState, "", "./imgs/dark_sonne.png", 6)
+        self.dataField(monitorFrame, "Beleuchtung:", self._curLightState, "", "./imgs/dark_sonne.png", 6)
 
         # "Programm"-Bereich, zum Anzeigen der Soll-Werte
         programFrame = ttk.Frame(mainframe, padding=10)
-        programFrame.grid(column=2, row=2)
-        ttk.Frame(programFrame, width=200, height=100).grid(column=0, row=0)
+        programFrame.grid(column=2, row=2, sticky="nw")
+        self.dataInput(programFrame, "Beleuchtungszeit:", [], "h").grid(column=0, row=0)
         
 
         self.update()
@@ -105,7 +125,6 @@ class GUI:
         self._curMoisture.set(self.__curValues[2])
         self._curLightState.set(self.__curValues[3])
 
-        self.__auto = not self.__auto
 
         # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
         self.root.after(self.__updateInterval, self.update)
