@@ -5,8 +5,10 @@ import os
 
 class GUI:
     # Schriftstile, die in verschiedenen Funktionen gebraucht werden
-    global normText, bigLabel
-    normText = ("System", "12")
+    global smallText, boldText, normText, bigLabel
+    smallText = ("System", "9")
+    normText = ("System", "14")
+    boldText = ("System", "14", "bold")
     bigLabel = ("System", "16", "bold")
 
 
@@ -17,19 +19,17 @@ class GUI:
         # Der Pfad zum Bild wird relativ zum Pfad dieses Skripts bestimmt
         dirname = os.path.dirname(__file__)
         filepath = os.path.join(dirname, img)
-        # tkinter erlaubt kein dynamisches Skalieren von Bildern, daher werden Bilder gesubsampled
-        image = tk.PhotoImage(file=filepath).subsample(10,10)
+        image = tk.PhotoImage(file=filepath)
 
-        dataframe = ttk.Frame(parentFrame, padding="0 10 0 10")
+        dataframe = ttk.Frame(parentFrame, padding="0 15 0 15")
         # Das Bild muss als Referenz gespeichert werden, da es sonst direkt garbage-collected wird
         dataframe.image = image
         dataframe.grid(row=row, sticky="w")
-        dataframe.columnconfigure(0, minsize=50)
 
-        ttk.Label(dataframe, image=image, padding="0 0 10 0").grid(column=0, row=0, rowspan=3, sticky="ns")
-        ttk.Label(dataframe, text=descriptor, font=normText, padding="0 0 10 0").grid(column=1, row=0, columnspan=6, sticky="w")
-        ttk.Label(dataframe, textvariable=variable, font=normText).grid(column=1, row=1, sticky="w")
-        ttk.Label(dataframe, text=unit, font=normText).grid(column=2, row=1, sticky="w")
+        ttk.Label(dataframe, image=image, padding="0 0 10 0").grid(column=0, row=0, rowspan=3, sticky="s")
+        ttk.Label(dataframe, text=descriptor, font=smallText, padding="0 0 10 0").grid(column=1, row=0, columnspan=6, sticky="w")
+        ttk.Label(dataframe, textvariable=variable, font=bigLabel).grid(column=1, row=1, sticky="w")
+        ttk.Label(dataframe, text=unit, font=bigLabel).grid(column=2, row=1, sticky="w")
 
 
     def __init__(self, updateInterval, curValues, progValues):
@@ -67,10 +67,10 @@ class GUI:
         # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
         monitorFrame = ttk.Frame(mainframe, padding=10)
         monitorFrame.grid(column=0, row=2)
-        self.datafield(monitorFrame, "Lufttemperatur:", self._curTemperature, "°C", "./imgs/temp.gif", 0)
-        self.datafield(monitorFrame, "Luftfeuchtigkeit:", self._curHumidity, "%", "./imgs/luft.gif", 1)
-        self.datafield(monitorFrame, "Bodenfeuchtigkeit:", self._curMoisture, "%", "./imgs/tropfen.gif", 2)
-        self.datafield(monitorFrame, "Beleuchtung:", self._curLightState, "", "./imgs/sonne.gif", 3)
+        self.datafield(monitorFrame, "Lufttemperatur:", self._curTemperature, "°C", "./imgs/temp.png", 0)
+        self.datafield(monitorFrame, "Luftfeuchtigkeit:", self._curHumidity, "%", "./imgs/luft.png", 1)
+        self.datafield(monitorFrame, "Bodenfeuchtigkeit:", self._curMoisture, "%", "./imgs/tropfen.png", 2)
+        self.datafield(monitorFrame, "Beleuchtung:", self._curLightState, "", "./imgs/sonne.png", 3)
 
         # "Programm"-Bereich, zum Anzeigen der Soll-Werte
         programFrame = ttk.Frame(mainframe, padding=10)
