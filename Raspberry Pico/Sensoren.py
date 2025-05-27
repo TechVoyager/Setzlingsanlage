@@ -10,3 +10,6 @@ class Sensor(ABC):
 
         def masure(self): #alle Unterklassen müssen die Funktion Messen haben!
             pass
+
+
+# push tests
