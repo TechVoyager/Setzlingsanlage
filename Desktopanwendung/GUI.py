@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import os
+import math
 
 
 class GUI:
@@ -39,18 +40,52 @@ class GUI:
     def dataInput(parentFrame: ttk.Frame, descriptor: str, variable, addInfo: str, enabled: bool = False):
         # Template für ein Widget, welches einen veränderlichen Datenpunkt darstellt
 
-        dataFrame = ttk.Frame(parentFrame, padding="15 15 15 15", style="Card")
+        dataFrame = ttk.Frame(parentFrame, padding=15, style="Card")
         
         ttk.Label(dataFrame, text=descriptor, font=smallText, padding="0 0 0 10").grid(column=0, row=0, columnspan=2, sticky="w")
-        entry = ttk.Entry(dataFrame, textvariable=variable, width=10)
-        entry.grid(column=0, row=1)
+        entryField = ttk.Entry(dataFrame, textvariable=variable, width=10)
+        entryField.grid(column=0, row=1)
         if enabled:
-            entry.config(state="normal")
+            entryField.config(state="normal")
         else:
-            entry.config(state="disabled")
+            entryField.config(state="disabled")
         ttk.Label(dataFrame, text=addInfo, padding="5 0 0 0").grid(column=1, row=1)
 
-        return dataFrame
+        # Gibt den dataFrame (in dem alles enthalten ist) zurück, damit gelayouted werden kann
+        # und das entryField, damit die Eingabe später gesperrt und entsperrt werden kann
+        return dataFrame, entryField
+    
+
+    def tiledDataField(self, parentFrame: ttk.Frame, descriptors: list, variables: list, addInfo: list, columns: int):
+        # Template für ein dynamisches Tiling von dataInput-Widgets
+
+        # Nötige Anzahl an Zeilen wird anhand der gewünschten Spalten-Anzahl ermittelt
+        rows = math.ceil(len(descriptors) / columns)
+        tilingFrame = ttk.Frame(parentFrame)
+        # die "entry"-widgets, welche in dataInput genutzt werden, werden in einer Liste gespeichert und returned,
+        # um das (Ent-)Sperren der Eingabe zu erleichtern, wenn zwischen dem Automatik bzw. Manuellen Modus gewechselt wird
+        dataFields = []
+        for row in range(rows):
+            for column in range(columns):
+                index = columns * row + column
+                if index <= len(descriptors) - 1:
+                    # das helperFrame ist dafür da, um ein Padding zwischen den dataInput-Widgets zu erzeugen
+                    helperFrame = ttk.Frame(tilingFrame, padding=5)
+                    dataFrame, entryField = self.dataInput(helperFrame, descriptors[index], variables[index], addInfo[index])
+                    # das dataFrame MUSS mit .grid eingelayouted werden, da es sonst nicht angezeigt wird
+                    dataFrame.grid(column=0, row=0)
+                    helperFrame.grid(column=column, row=row)
+                    dataFields.append(entryField)
+        
+        return tilingFrame, dataFields
+
+
+    def toggleEntryFields(self):
+        for field in self.__entryFields:
+            if self.__auto.get():
+                field.config(state="disabled")
+            else:
+                field.config(state="normal")
 
 
     def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant):
@@ -90,13 +125,14 @@ class GUI:
         # Überschriften-Bereich
         ttk.Label(mainframe, text="Monitor", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
         helperFrame = ttk.Frame(mainframe)
-        helperFrame.grid(column=2, row=0)
-        ttk.Label(helperFrame, text="Programm", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
+        helperFrame.grid(column=2, row=0, sticky="nsew")
+        helperFrame.columnconfigure(1, weight=1)
+        ttk.Label(helperFrame, text="Programm", font=bigLabel, padding=10).grid(column=0, row=0, sticky="w")
         # Schalter für den Automatik bzw. Manuellen Modus
         switchFrame = ttk.Frame(helperFrame, padding=10)
-        switchFrame.grid(column=4, row=0, sticky="e")
+        switchFrame.grid(column=1, row=0, sticky="e")
         ttk.Label(switchFrame, text="Manuell", padding="0 0 5 0").grid(column=1, row=0, sticky="e")
-        ttk.Checkbutton(switchFrame, text='Auto', style='Switch', variable=self.__auto).grid(column=2, row=0, sticky="e")
+        ttk.Checkbutton(switchFrame, text='Auto', style='Switch', variable=self.__auto, command=self.toggleEntryFields).grid(column=2, row=0, sticky="e")
 
         # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
         monitorFrame = ttk.Frame(mainframe, padding=10)
@@ -112,7 +148,10 @@ class GUI:
         # "Programm"-Bereich, zum Anzeigen der Soll-Werte
         programFrame = ttk.Frame(mainframe, padding=10)
         programFrame.grid(column=2, row=2, sticky="nw")
-        self.dataInput(programFrame, "Beleuchtungszeit:", [], "h").grid(column=0, row=0)
+        tilingFrame, entryFields = self.tiledDataField(parentFrame=programFrame, descriptors=range(6), variables=range(6), addInfo=range(6), columns=2)
+        tilingFrame.grid(column=0, row=0)
+
+        self.__entryFields = entryFields
         
 
         self.update()
@@ -124,7 +163,6 @@ class GUI:
         self._curHumidity.set(self.__curValues[1])
         self._curMoisture.set(self.__curValues[2])
         self._curLightState.set(self.__curValues[3])
-
 
         # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
         self.root.after(self.__updateInterval, self.update)
