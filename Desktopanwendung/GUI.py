@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 import os
 import math
 
@@ -86,6 +87,40 @@ class GUI:
                 field.config(state="disabled")
             else:
                 field.config(state="normal")
+    
+
+    def scrollableSelection(self, parentFrame, entryFieldVar):
+        container = ttk.Frame(parentFrame, padding="0 5 5 0", width=100)
+        ttk.Entry(container, textvariable=entryFieldVar).grid(column=0, row=0, sticky="ew")
+        ttk.Frame(container, height=5).grid(column=0, row=1)
+
+        self.__plantSelectionBox = ttk.Treeview(container, columns=["Name"], show="", height=5)
+        self.__plantSelectionBox.grid(column=0, row=2, sticky="ew")
+        self.__plantSelectionBox.column("0", minwidth=0, width=100)
+        for plantName in self._plantList:
+            self.__plantSelectionBox.insert('', index="end", values=plantName)
+        
+        self.__plantSelectionBox.bind("<<TreeviewSelect>>", self.plantSelected)
+
+        ttk.Frame(container, height=5).grid(column=0, row=3)
+        ttk.Button(container, text="Profil anwenden", style="Accent.TButton", command=self.profileToPico).grid(column=0, row=4, sticky="nsew")
+        
+        return container
+    
+
+    def plantSelected(self, event):
+        selected_row = self.__plantSelectionBox.selection()[0]
+        self._selectedPlant = self.__plantSelectionBox.item(selected_row, "values")[0]
+        self.__plantEntryVar.set(self._selectedPlant)
+
+    
+    def profileToPico(self):
+        # Schickt das aktuell ausgewählte Pflanzenprofil und (bei Erstellung eines neuen Profils) die Soll-Werte zum Pico
+        plantToSend = self.__plantEntryVar.get()
+        if plantToSend in self._plantList:
+            print("PLACEHOLDER: sent data:", plantToSend)
+        else:
+            error = messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreibe den Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wähle ein Profil aus der Liste aus.")
 
 
     def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant):
@@ -94,6 +129,8 @@ class GUI:
         # So liest die "update"-Funktion automatisch die neusten Werte, welche sie dann in das GUI schreibt.
         self.__curValues = curValues
         self.__progValues = progValues
+        self._plantList = plantList
+        self._selectedPlant = selectedPlant
         
         # Initialisierung des des Fensters
         self.root = tk.Tk()
@@ -109,6 +146,8 @@ class GUI:
         # Diese Variable wird entweder nicht als Referenz weitergegeben oder etwas anderes stimmt nicht. Auf jeden Fall verändert
         # sich der Wert außerhalb des Threads nicht.
         self.__auto = tk.BooleanVar(self.root, value=True)
+
+        self.__plantEntryVar = tk.StringVar(self.root, value=selectedPlant)
 
         # Diese Art von Styling kann erst nach Initialisierung vorgenommen werden
         # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
@@ -148,8 +187,11 @@ class GUI:
         # "Programm"-Bereich, zum Anzeigen der Soll-Werte
         programFrame = ttk.Frame(mainframe, padding=10)
         programFrame.grid(column=2, row=2, sticky="nw")
+        plantSelectSection = self.scrollableSelection(programFrame, self.__plantEntryVar)
+        plantSelectSection.grid(column=0, row=0, sticky="nw")
+        # TO-DO: Platzhalter gegen echte Werte austauschen
         tilingFrame, entryFields = self.tiledDataField(parentFrame=programFrame, descriptors=range(6), variables=range(6), addInfo=range(6), columns=2)
-        tilingFrame.grid(column=0, row=0)
+        tilingFrame.grid(column=1, row=0)
 
         self.__entryFields = entryFields
         
