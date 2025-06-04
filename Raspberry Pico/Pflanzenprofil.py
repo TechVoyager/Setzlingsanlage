@@ -3,89 +3,58 @@ import csv
 import os
 
 class Pflanzenprofil():
-
-    def __init__(self):
-
+    Pflanzen_dict = {} # Dictionary zum speichern der Pflanzenwerte
+    #Funktion liest csv-Datei ein
+    def einlesen_csv(self):
         dirName = os.path.dirname(__file__)
-        # nach with-Block wird die Datei wieder geschlossen
-        with open(dirName + "/Data/Pflanzenprofile.csv") as csvdatei:
-            csv_reader_object = csv.reader(csvdatei, delimiter=";")
-            # delimiter: Info mit was die csv-Datei die Teile trennt
-            self.Liste = list(csv_reader_object)
-            self.Erdbeere = self.Liste[1]
-            self.Rosen = self.Liste[2]
-            self.Gerbera = self.Liste[3]
-            self.Lilien = self.Liste[4]
-            # self.liste["Erdbeere"]
+        #__file__ gibt den Pfad bis einschlieslich der Datei an
+        # os.path.dirname() gibt den Ordnerpfad ohne den Dateinamen
+        # Datei wird wieder geachlossen nach with
+        with open(dirName + "/Data/Pflanzenprofile.csv",encoding='utf-8-sig', newline='') as csvdatei:
+            #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen Buchstaben sind
+            #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden
+            csv_reader_object = csv.DictReader(csvdatei, delimiter=';') # delimiter: Trennzeichen in der csv_Datei
+            for zeile in csv_reader_object: # jede Zeile ist ein dict
+                schluessel = zeile[csv_reader_object.fieldnames[0]] # = row['Pflanzenprofil'] gibt in der Zeile den Wert zum Schlüssel 'flanzenprofil' -> Erdbeeren 
+                self.Pflanzen_dict[schluessel] = zeile # speichert die ganze Zeile unter dem namen Schluessel
+    # Funktion liest csv-Datei ein und schreibt die Werte in ein Dictionary
+    def __init__(self):
+        self.einlesen_csv()
+        """dirName = os.path.dirname(__file__)
+        #__file__ gibt den Pfad bis einschlieslich der Datei an
+        # os.path.dirname() gibt den Ordnerpfad ohne den Dateinamen
+        # Datei wird wieder geachlossen nach with
+        with open(dirName + "/Data/Pflanzenprofile.csv",encoding='utf-8-sig', newline='') as csvdatei:
+            #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen Buchstaben sind
+            #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden
+            csv_reader_object = csv.DictReader(csvdatei, delimiter=';') # delimiter: Trennzeichen in der csv_Datei
+            for zeile in csv_reader_object: # jede Zeile ist ein dict
+                schluessel = zeile[csv_reader_object.fieldnames[0]] # = row['Pflanzenprofil'] gibt in der Zeile den Wert zum Schlüssel 'flanzenprofil' -> Erdbeeren 
+                self.Pflanzen_dict[schluessel] = zeile # speichert die ganze Zeile unter dem namen Schluessel"""
 
-    # gibt Infos der einzelnen Pflanzen
-    def Pflanzen_Info(self, pflanze):
-        i = pflanze
-        print(f"Pflanze: {self.Liste[i][0]}")
-        print(f"Wassermenge(in l): {self.Liste[i][1]}, Gießhäufigkeit(pro Woche): {self.Liste[i][2]}, ") 
-        print(f"Tagdauer(in h): {self.Liste[i][3]}, Nachtdauer(in h): {self.Liste[i][4]}, ")
-        print(f"Bodentemperatur Tag(inC): {self.Liste[i][5]}, Bodentemperatur Nacht(in°C): {self.Liste[i][6]}, ") 
-        print(f"Luftfeuchtigkeit(in%RH): {self.Liste[i][7]}")
-        print()
-
-    # gibt die ganze Liste aus
-    def gib_Liste(self):
-        i = 1
-        while i < len(self.Liste):
-            print(f"Pflanze: {self.Liste[i][0]}, Wassermenge: {self.Liste[i][1]}, Gießhäufigkeit: {self.Liste[i][2]}, Tagdauer: {self.Liste[i][3]}")
-            print(f"Nachtdauer: {self.Liste[i][4]},  Bodentemperatur Tag: {self.Liste[i][5]}, Bodentemperatur Nacht: {self.Liste[i][6]}, Luftfeuchtigkeit: {self.Liste[i][7]}")
-            print()         
-            i += 1
-
-    # alte Infos nicht mehr nötig
-    def gib_Infos(self):
-        # aus der csv-Datei lesen
-        with open('./Data/Pflanzenprofile.csv') as csvdatei:
-                csv_reader_object = csv.reader(csvdatei, delimiter=';')
-                # delimiter: Info mit was die csv-Datei die Teile trennt
-                kopfzeile = next(csv_reader_object)
-                # Kopfzeile wird überstprungen und in kopfzeile gespeichert
-                for row in csv_reader_object:
-                    print("----- Neue Pflanze -----")
-                    print(f"Pflanze: {row[0]}, Wassermenge: {row[1]}, Gießhäufigkeit: {row[2]}, Tagdauer: {row[3]}")
-                    print(f"Nachtdauer: {row[4]},  Bodentemperatur: {row[5]}, Luftfeuchtifkeit: {row[6]} ")
-                    print()  # Leerzeile für bessere Lesbarkeit
-
-                
-    def gib_Pflanzenart(self, pflanze):
-        return self.Liste[pflanze][0]
-
-    # gibt Wassermenge zurück mit Zahlenangabe zur Pflanzenartbestimmung
-    def gib_Wassermenge(self, pflanze):
-        Wassermenge = self.Liste[pflanze][1]
-        return Wassermenge
+    # Funktion gibt die Werte der gewünschten Pflanze zurück
+    def gib_Pflanzenwerte(self, Pflanze):
+        return self.Pflanzen_dict.get(Pflanze, f"Pflanze '{Pflanze}' nicht gefunden") 
+        # falls es die Pflanze nicht gibt, wird "Pflanze nicht gefunden" zurückgegeben
     
-    def gib_Gießhäufigkeit(self, pflanze):
-        return self.Liste[pflanze][2]
-    
-    def gib_Tagdauer(self, pflanze):
-        return self.Liste[pflanze][3]
+    # Funktion schreibt neue Werte in die CSV-Datei
+    def neue_Pflanzenart(self, Pflanzenart, Gießhaeufigkeit, Tagdauer, Nachtdauer, 
+                         BodentempTag, BodentempNacht, Lufttemp, Luftfeuchte, Bodenfeuchte):
+        Werteliste = [Pflanzenart, Gießhaeufigkeit, Tagdauer, Nachtdauer, 
+                         BodentempTag, BodentempNacht, Lufttemp, Luftfeuchte, Bodenfeuchte]
+        dirName = os.path.dirname(__file__)
+        if Pflanzenart not in self.Pflanzen_dict:
+            #Datei öffnen
+            with open(dirName + "/Data/Pflanzenprofile.csv", mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
+                writer_object = csv.writer(csvdatei, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
+                writer_object.writerow(Werteliste)
+        self.einlesen_csv() #csv-Datei wieder einlesen mit neuer Pflanzenart
+        return "Neue Pflanzenart hinzugefügt"
 
-    def gib_Nachtdauer(self, pflanze):
-        return self.Liste[pflanze][4]
-    
-    def gib_BodentemperaturTag(self, pflanze):
-        return self.Liste[pflanze][5]
-    
-    def gib_BodentemperaturNacht(self, pflanze):
-        return self.Liste[pflanze][6]
-    
-    def gib_Luftfeuchtigkeit(self, pflanze):
-        return self.Liste[pflanze][7]
-
-Pflanze = Pflanzenprofil()
-print("Pflanzenart: ", Pflanze.gib_Pflanzenart(3))
-print("Wassermenge: ", Pflanze.gib_Wassermenge(3))
-print("Gießhäufigkeit: ", Pflanze.gib_Gießhäufigkeit(3))
-print("Tagdauer: ", Pflanze.gib_Tagdauer(3))
-print("Nachtdauer: ", Pflanze.gib_Nachtdauer(3))
-print("Bodentemperatur Tag: ", Pflanze.gib_BodentemperaturTag(3))
-print("Bodentemperatur Nacht: ", Pflanze.gib_BodentemperaturNacht(3))
-print("Luftfeuchtigkeit: ", Pflanze.gib_Luftfeuchtigkeit(3))
-Pflanze.gib_Liste()
-Pflanze.Pflanzen_Info(2)
+"""Pflanze = Pflanzenprofil()
+print(Pflanze.Pflanzen_dict)
+print(Pflanze.gib_Pflanzenwerte("Erdbeeren"))
+print(Pflanze.gib_Pflanzenwerte("Salat"))
+print(Pflanze.neue_Pflanzenart('Karotte',2,3,4,5,6,7,8, 9))
+print(Pflanze.gib_Pflanzenwerte("Karotte"))
+"""
