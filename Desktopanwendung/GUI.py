@@ -15,7 +15,7 @@ class GUI:
     dirName = os.path.dirname(__file__)
 
 
-    def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant, unsentDataFlag):
+    def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant, unsentDataFlag, connected):
         # Die meisten Parameter werden hier sowohl als "regulärer" Python-Datentyp, als auch als TK-Datentyp gespeichert.
         # Der Grund dafür ist die Kommunikation mit dem Pico: Das GUI wird am Ende in einem Thread laufen, die
         # serielle Schnittstelle in einem anderen. Um Daten zwischen den Threads auszutauschen, werden diese als globale
@@ -33,6 +33,7 @@ class GUI:
         self._selectedPlant = selectedPlant
         # Variable für den Automatik- bzw. manuellen Modus
         self._auto = auto
+        self._connected = connected
 
         # Wird auf True gesetzt um der Seriellen Schnittstelle zu signalisieren, dass es neue Daten gibt, die auf den
         # Pico übertragen weren müssen
@@ -56,6 +57,8 @@ class GUI:
         # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
         self.root.tk.call('source', dirName+'/theme/forest-dark.tcl')
         ttk.Style().theme_use('forest-dark')
+        ttk.Style().configure("Red.TLabel", foreground="red")
+        ttk.Style().configure("Green.TLabel", foreground="green")
 
         mainframe = ttk.Frame(self.root)
         mainframe.grid(column=0, row=0, sticky="nsew")
@@ -65,7 +68,12 @@ class GUI:
         ttk.Frame(mainframe, style="Card", height=1).grid(row=1, column=0, columnspan=100, sticky="ew")
 
         # Überschriften-Bereich
-        ttk.Label(mainframe, text="Monitor", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
+        monitorFrame = ttk.Frame(mainframe)
+        monitorFrame.grid(column=0, row=0, sticky="nsew")
+        monitorFrame.columnconfigure(0, weight=1)
+        ttk.Label(monitorFrame, text="Monitor", font=bigLabel, padding=10).grid(column=0, row=0, sticky="nsew")
+        self.__connectionStatusField = ttk.Label(monitorFrame, text="...", padding=10)
+        self.__connectionStatusField.grid(column=1, row=0, sticky="e")
         helperFrame = ttk.Frame(mainframe)
         helperFrame.grid(column=2, row=0, sticky="nsew")
         helperFrame.columnconfigure(1, weight=1)
@@ -109,6 +117,11 @@ class GUI:
         self.__TKcurHumidity.set(self.__curValues["humidity"])
         self.__TKcurMoisture.set(self.__curValues["moisture"])
         self.__TKcurLightState.set(self.__curValues["lightState"])
+
+        if self._connected[0]:
+            self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
+        else:
+            self.__connectionStatusField.config(text="Getrennt", style="Red.TLabel")
 
         # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
         self.root.after(self.__updateInterval, self.update)
@@ -183,7 +196,6 @@ class GUI:
         self._auto[0] = self.__TKauto.get()
 
         for field in self.__entryFields:
-            print(self._auto)
             if self._auto[0]:
                 field.config(state="disabled")
             else:
@@ -229,12 +241,17 @@ class GUI:
     def profileToPico(self):
         # Schickt das aktuell ausgewählte Pflanzenprofil und die Soll-Werte zum Pico
         plantToSend = self.__TKplantEntryVar.get()
-        if plantToSend in self._plantList:
-            if not self.__unsentData[0]:
-                self.__unsentData[0] = True
-            else:
-                messagebox.showerror("Zu viele Daten", "Es wurden noch nicht alle Daten auf die Setzlingsanlage übertragen. Bitte versuchen Sie es gleich erneut.")
+        if not self._connected[0]:
+            messagebox.showerror("Verbindung getrennt", "Es besteht keine Verbindung zur Setzlingsanlage. Überprüfen sie das Kabel und die Verbindungseinstellungen.")
+            return
+        
+        if plantToSend not in self._plantList:
+            messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreiben Sie den vollständigen Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wählen Sie ein Profil aus der Liste aus.")
+            return
+
+        if not self.__unsentData[0]:
+            self.__unsentData[0] = True
         else:
-            messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreibe den Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wähle ein Profil aus der Liste aus.")
+            messagebox.showerror("Zu viele Daten", "Es wurden noch nicht alle Daten auf die Setzlingsanlage übertragen. Bitte versuchen Sie es gleich erneut.")
 
 

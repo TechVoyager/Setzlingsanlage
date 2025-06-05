@@ -11,10 +11,11 @@ auto = [True]
 availableProfiles = ["Tomate", "Erdbeere"]
 selectedPlant = ["Tomate"]
 unsentDataFlag = [False]
+connected = [False]
 
 
 def run_gui(curValues, progValues, auto, availableProfiles, selectedPlant):
-    gui = GUI(updateInterval=1000, curValues=curValues, progValues=progValues, auto=auto, plantList=availableProfiles, selectedPlant=selectedPlant, unsentDataFlag=unsentDataFlag)
+    gui = GUI(updateInterval=1000, curValues=curValues, progValues=progValues, auto=auto, plantList=availableProfiles, selectedPlant=selectedPlant, unsentDataFlag=unsentDataFlag, connected=connected)
     return
 
 
@@ -22,5 +23,5 @@ t1 = threading.Thread(target=run_gui, args=[curVals, progVals, auto, availablePr
 t1.start()
 
 while t1.is_alive():
-    print(auto)
-    #curVals["airTemp"] = input("Neue Temperatur: \n")
+    connected[0] = bool(input())
+    print(connected)
