@@ -5,15 +5,16 @@ from GUI import GUI
 import threading
 
 # curVals sind die aktuellen Messwerte, progVals die programmierten Soll-Werte
-curVals = [0, 0, 0, "--"]
+curVals = {"airTemp": 0, "humidity": 0, "moisture": 0, "lightState": "aus"}
 progVals = []
-auto = True
-availableProfiles = []
-selectedPlant = []
+auto = [True]
+availableProfiles = ["Tomate", "Erdbeere"]
+selectedPlant = ["Tomate"]
+unsentDataFlag = [False]
 
 
 def run_gui(curValues, progValues, auto, availableProfiles, selectedPlant):
-    gui = GUI(updateInterval=1000, curValues=curValues, progValues=progValues, auto=auto, plantList=availableProfiles, selectedPlant=selectedPlant)
+    gui = GUI(updateInterval=1000, curValues=curValues, progValues=progValues, auto=auto, plantList=availableProfiles, selectedPlant=selectedPlant, unsentDataFlag=unsentDataFlag)
     return
 
 
@@ -21,4 +22,5 @@ t1 = threading.Thread(target=run_gui, args=[curVals, progVals, auto, availablePr
 t1.start()
 
 while t1.is_alive():
-    curVals[0] = input("Neue Temperatur: \n")
+    print(auto)
+    #curVals["airTemp"] = input("Neue Temperatur: \n")

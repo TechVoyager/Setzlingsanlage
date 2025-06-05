@@ -3,18 +3,116 @@ from tkinter import ttk
 from tkinter import messagebox
 import os
 import math
+import serial
 
 
 class GUI:
     # Schriftstile, die in verschiedenen Funktionen gebraucht werden
-    global smallText, boldText, normText, bigLabel, dirName
+    global smallText, bigLabel, dirName
     smallText = ("System", "9")
-    normText = ("System", "14")
-    boldText = ("System", "14", "bold")
     bigLabel = ("System", "16", "bold")
 
     dirName = os.path.dirname(__file__)
 
+
+    def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant, unsentDataFlag):
+        # Die meisten Parameter werden hier sowohl als "regulärer" Python-Datentyp, als auch als TK-Datentyp gespeichert.
+        # Der Grund dafür ist die Kommunikation mit dem Pico: Das GUI wird am Ende in einem Thread laufen, die
+        # serielle Schnittstelle in einem anderen. Um Daten zwischen den Threads auszutauschen, werden diese als globale
+        # Variablen im Heap gespeichert. Alle Daten, die zwischen den Threads ausgetauscht werden, werden als Referenz
+        # an diese Klasse übergeben, damit Änderungen direkt im Heap passieren.
+        # Da nur Listen(-ähnliche) Datentypen als Referenz übergeben werden, werden alle andere Datentypen in einer
+        # Liste verpackt
+
+        self.__updateInterval = updateInterval
+        # Dictionary für die Ist-Werte
+        self.__curValues = curValues
+        # Dictionary für die programmierten bzw. Soll-Werte
+        self.__progValues = progValues
+        self._plantList = plantList
+        self._selectedPlant = selectedPlant
+        # Variable für den Automatik- bzw. manuellen Modus
+        self._auto = auto
+
+        # Wird auf True gesetzt um der Seriellen Schnittstelle zu signalisieren, dass es neue Daten gibt, die auf den
+        # Pico übertragen weren müssen
+        self.__unsentData = unsentDataFlag
+        
+        # Initialisierung des des Fensters
+        self.root = tk.Tk()
+        self.root.title("SetzlingsUI")
+
+        # Variablen müssen außerdem auch als tk-Variablen definiert werden, damit sie im Widget angezeigt werden können
+        self.__TKcurTemperature = tk.IntVar(self.root, value=curValues["airTemp"])
+        self.__TKcurHumidity = tk.IntVar(self.root, value=curValues["humidity"])
+        self.__TKcurMoisture = tk.IntVar(self.root, value=curValues["moisture"])
+        self.__TKcurLightState = tk.StringVar(self.root, value=curValues["lightState"])
+        self.__TKauto = tk.BooleanVar(self.root, value=auto[0])
+
+        # Enthält die Eingabe in das Such-Feld bei der Auswahl des Pflanzenprofils
+        self.__TKplantEntryVar = tk.StringVar(self.root, value=selectedPlant[0])
+
+        # Diese Art von Styling kann erst nach Initialisierung vorgenommen werden
+        # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
+        self.root.tk.call('source', dirName+'/theme/forest-dark.tcl')
+        ttk.Style().theme_use('forest-dark')
+
+        mainframe = ttk.Frame(self.root)
+        mainframe.grid(column=0, row=0, sticky="nsew")
+        
+        # Vertikale und horizontale Trennlinien
+        ttk.Frame(mainframe, style="Card", width=1).grid(row=0, column=1, rowspan=100, sticky="ns")
+        ttk.Frame(mainframe, style="Card", height=1).grid(row=1, column=0, columnspan=100, sticky="ew")
+
+        # Überschriften-Bereich
+        ttk.Label(mainframe, text="Monitor", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
+        helperFrame = ttk.Frame(mainframe)
+        helperFrame.grid(column=2, row=0, sticky="nsew")
+        helperFrame.columnconfigure(1, weight=1)
+        ttk.Label(helperFrame, text="Programm", font=bigLabel, padding=10).grid(column=0, row=0, sticky="w")
+        # Schalter für den Automatik bzw. Manuellen Modus
+        switchFrame = ttk.Frame(helperFrame, padding=10)
+        switchFrame.grid(column=1, row=0, sticky="e")
+        ttk.Label(switchFrame, text="Manuell", padding="0 0 5 0").grid(column=1, row=0, sticky="e")
+        ttk.Checkbutton(switchFrame, text='Auto', style='Switch', variable=self.__TKauto, command=self.toggleEntryFields).grid(column=2, row=0, sticky="e")
+
+        # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
+        monitorFrame = ttk.Frame(mainframe, padding=10)
+        monitorFrame.grid(column=0, row=2)
+        self.dataField(monitorFrame, "Lufttemperatur:", self.__TKcurTemperature, "°C", "./imgs/dark_temp.png", 0)
+        ttk.Frame(monitorFrame, height=10).grid(column=0, row=1)
+        self.dataField(monitorFrame, "Luftfeuchtigkeit:", self.__TKcurHumidity, "%", "./imgs/dark_luft.png", 2)
+        ttk.Frame(monitorFrame, height=10).grid(column=0, row=3)
+        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self.__TKcurMoisture, "%", "./imgs/dark_tropfen.png", 4)
+        ttk.Frame(monitorFrame, height=10).grid(column=0, row=5)
+        self.dataField(monitorFrame, "Beleuchtung:", self.__TKcurLightState, "", "./imgs/dark_sonne.png", 6)
+
+        # "Programm"-Bereich, zum Anzeigen der Soll-Werte
+        programFrame = ttk.Frame(mainframe, padding=10)
+        programFrame.grid(column=2, row=2, sticky="nw")
+        plantSelectSection = self.scrollableSelection(programFrame, self.__TKplantEntryVar)
+        plantSelectSection.grid(column=0, row=0, sticky="nw")
+        # TO-DO: Platzhalter gegen echte Werte austauschen
+        tilingFrame, entryFields = self.tiledDataField(parentFrame=programFrame, descriptors=range(6), variables=range(6), addInfo=range(6), columns=2)
+        tilingFrame.grid(column=1, row=0)
+
+        # Die Eingabefelder für die Soll-Werte werden in einer Liste gespeichert, damit sie einfach gesperrt bzw. entsperrt werden können
+        self.__entryFields = entryFields
+        
+
+        self.update()
+        self.root.mainloop()
+
+
+    def update(self):
+        self.__TKcurTemperature.set(self.__curValues["airTemp"])
+        self.__TKcurHumidity.set(self.__curValues["humidity"])
+        self.__TKcurMoisture.set(self.__curValues["moisture"])
+        self.__TKcurLightState.set(self.__curValues["lightState"])
+
+        # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
+        self.root.after(self.__updateInterval, self.update)
+    
 
     @staticmethod
     def dataField(parentFrame: ttk.Frame, descriptor: str, variable, unit: str, img: str, row: int):
@@ -82,18 +180,29 @@ class GUI:
 
 
     def toggleEntryFields(self):
+        self._auto[0] = self.__TKauto.get()
+
         for field in self.__entryFields:
-            if self.__auto.get():
+            print(self._auto)
+            if self._auto[0]:
                 field.config(state="disabled")
             else:
                 field.config(state="normal")
     
 
     def scrollableSelection(self, parentFrame, entryFieldVar):
+        # Ein zusammengesetztes Widget für die Pflanzen-Auswahl, enthält ein Such-Feld, eine Liste der verfügbaren Profile
+        # und ein Bestätigungs-Button.
+        
+        # TO-DO: Suchalgorithmus implementieren
+
         container = ttk.Frame(parentFrame, padding="0 5 5 0", width=100)
+        # Suchfeld
         ttk.Entry(container, textvariable=entryFieldVar).grid(column=0, row=0, sticky="ew")
+        # Abstandhalter
         ttk.Frame(container, height=5).grid(column=0, row=1)
 
+        # show="" sorgt dafür, dass der Tabellenkopf ausgeblendet wird, "height" gibt die Anzahl an angezeigten Elementen an
         self.__plantSelectionBox = ttk.Treeview(container, columns=["Name"], show="", height=5)
         self.__plantSelectionBox.grid(column=0, row=2, sticky="ew")
         self.__plantSelectionBox.column("0", minwidth=0, width=100)
@@ -102,109 +211,30 @@ class GUI:
         
         self.__plantSelectionBox.bind("<<TreeviewSelect>>", self.plantSelected)
 
+        # Abstandhalter
         ttk.Frame(container, height=5).grid(column=0, row=3)
         ttk.Button(container, text="Profil anwenden", style="Accent.TButton", command=self.profileToPico).grid(column=0, row=4, sticky="nsew")
         
+        # Container wird für weiteres Styling zurückgegeben
         return container
     
 
     def plantSelected(self, event):
         selected_row = self.__plantSelectionBox.selection()[0]
-        self._selectedPlant = self.__plantSelectionBox.item(selected_row, "values")[0]
-        self.__plantEntryVar.set(self._selectedPlant)
+        # Es müssen immer beide Variablen aktualisiert werden!
+        self._selectedPlant[0] = self.__plantSelectionBox.item(selected_row, "values")[0]
+        self.__TKplantEntryVar.set(self._selectedPlant[0])
 
     
     def profileToPico(self):
-        # Schickt das aktuell ausgewählte Pflanzenprofil und (bei Erstellung eines neuen Profils) die Soll-Werte zum Pico
-        plantToSend = self.__plantEntryVar.get()
+        # Schickt das aktuell ausgewählte Pflanzenprofil und die Soll-Werte zum Pico
+        plantToSend = self.__TKplantEntryVar.get()
         if plantToSend in self._plantList:
-            print("PLACEHOLDER: sent data:", plantToSend)
+            if not self.__unsentData[0]:
+                self.__unsentData[0] = True
+            else:
+                messagebox.showerror("Zu viele Daten", "Es wurden noch nicht alle Daten auf die Setzlingsanlage übertragen. Bitte versuchen Sie es gleich erneut.")
         else:
-            error = messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreibe den Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wähle ein Profil aus der Liste aus.")
+            messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreibe den Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wähle ein Profil aus der Liste aus.")
 
 
-    def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant):
-        self.__updateInterval = updateInterval
-        # Messwerte und Soll-Werte werden bei der Instanzierung als Listen übergeben, da diese per Referenz übergeben werden.
-        # So liest die "update"-Funktion automatisch die neusten Werte, welche sie dann in das GUI schreibt.
-        self.__curValues = curValues
-        self.__progValues = progValues
-        self._plantList = plantList
-        self._selectedPlant = selectedPlant
-        
-        # Initialisierung des des Fensters
-        self.root = tk.Tk()
-        self.root.title("SetzlingsUI")
-
-        # Variablen müssen als tk-Variablen definiert werden, damit sie im Widget angezeigt werden können
-        defVal = None
-        self._curTemperature = tk.IntVar(self.root, value=defVal)
-        self._curHumidity = tk.IntVar(self.root, value=defVal)
-        self._curMoisture = tk.IntVar(self.root, value=defVal)
-        self._curLightState = tk.StringVar(self.root, value="---")
-        # Variable für den Automatik- bzw. manuellen Modus
-        # Diese Variable wird entweder nicht als Referenz weitergegeben oder etwas anderes stimmt nicht. Auf jeden Fall verändert
-        # sich der Wert außerhalb des Threads nicht.
-        self.__auto = tk.BooleanVar(self.root, value=True)
-
-        self.__plantEntryVar = tk.StringVar(self.root, value=selectedPlant)
-
-        # Diese Art von Styling kann erst nach Initialisierung vorgenommen werden
-        # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
-        self.root.tk.call('source', dirName+'/theme/forest-dark.tcl')
-        ttk.Style().theme_use('forest-dark')
-
-        mainframe = ttk.Frame(self.root)
-        mainframe.grid(column=0, row=0, sticky="nsew")
-        
-        # Vertikale und horizontale Trennlinien
-        ttk.Frame(mainframe, style="Card", width=1).grid(row=0, column=1, rowspan=100, sticky="ns")
-        ttk.Frame(mainframe, style="Card", height=1).grid(row=1, column=0, columnspan=100, sticky="ew")
-
-        # Überschriften-Bereich
-        ttk.Label(mainframe, text="Monitor", font=bigLabel, padding=10).grid(column=0, row=0, sticky="ew")
-        helperFrame = ttk.Frame(mainframe)
-        helperFrame.grid(column=2, row=0, sticky="nsew")
-        helperFrame.columnconfigure(1, weight=1)
-        ttk.Label(helperFrame, text="Programm", font=bigLabel, padding=10).grid(column=0, row=0, sticky="w")
-        # Schalter für den Automatik bzw. Manuellen Modus
-        switchFrame = ttk.Frame(helperFrame, padding=10)
-        switchFrame.grid(column=1, row=0, sticky="e")
-        ttk.Label(switchFrame, text="Manuell", padding="0 0 5 0").grid(column=1, row=0, sticky="e")
-        ttk.Checkbutton(switchFrame, text='Auto', style='Switch', variable=self.__auto, command=self.toggleEntryFields).grid(column=2, row=0, sticky="e")
-
-        # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
-        monitorFrame = ttk.Frame(mainframe, padding=10)
-        monitorFrame.grid(column=0, row=2)
-        self.dataField(monitorFrame, "Lufttemperatur:", self._curTemperature, "°C", "./imgs/dark_temp.png", 0)
-        ttk.Frame(monitorFrame, height=10).grid(column=0, row=1)
-        self.dataField(monitorFrame, "Luftfeuchtigkeit:", self._curHumidity, "%", "./imgs/dark_luft.png", 2)
-        ttk.Frame(monitorFrame, height=10).grid(column=0, row=3)
-        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self._curMoisture, "%", "./imgs/dark_tropfen.png", 4)
-        ttk.Frame(monitorFrame, height=10).grid(column=0, row=5)
-        self.dataField(monitorFrame, "Beleuchtung:", self._curLightState, "", "./imgs/dark_sonne.png", 6)
-
-        # "Programm"-Bereich, zum Anzeigen der Soll-Werte
-        programFrame = ttk.Frame(mainframe, padding=10)
-        programFrame.grid(column=2, row=2, sticky="nw")
-        plantSelectSection = self.scrollableSelection(programFrame, self.__plantEntryVar)
-        plantSelectSection.grid(column=0, row=0, sticky="nw")
-        # TO-DO: Platzhalter gegen echte Werte austauschen
-        tilingFrame, entryFields = self.tiledDataField(parentFrame=programFrame, descriptors=range(6), variables=range(6), addInfo=range(6), columns=2)
-        tilingFrame.grid(column=1, row=0)
-
-        self.__entryFields = entryFields
-        
-
-        self.update()
-        self.root.mainloop()
-
-
-    def update(self):
-        self._curTemperature.set(self.__curValues[0])
-        self._curHumidity.set(self.__curValues[1])
-        self._curMoisture.set(self.__curValues[2])
-        self._curLightState.set(self.__curValues[3])
-
-        # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
-        self.root.after(self.__updateInterval, self.update)
