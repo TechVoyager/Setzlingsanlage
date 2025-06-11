@@ -1,4 +1,4 @@
-﻿Pflanzenart;Gießhaeufigkeit (pro Woche);Tagdauer (in h);Nachtdauer (in h);Bodentemperatur Tag (in °C);Bodentemperatur Nacht (in °C);Lufttemperatur (in °C);Luftfeuchte (in %RH);Bodenfeuchte (in %RH)
+﻿Pflanzenart;Gießhaeufigkeit;Tagdauer;Nachtdauer;Bodentemperatur_tag;Bodentemperatur_nacht;Lufttemperatur;Luftfeuchte;Bodenfeuchte
 Erdbeeren;2;10;8;20;10;20;70;0
 Rosen;2;16;8;21;18;20;75;0
 Gerbera;4;15;9;23;14;20;60;0
