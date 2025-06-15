@@ -4,6 +4,10 @@ from tkinter import messagebox
 import os
 import math
 import serial
+import serial.serialutil
+import serial.tools.list_ports
+import platform
+import time
 
 
 class GUI:
@@ -255,3 +259,80 @@ class GUI:
             messagebox.showerror("Zu viele Daten", "Es wurden noch nicht alle Daten auf die Setzlingsanlage übertragen. Bitte versuchen Sie es gleich erneut.")
 
 
+class SerialInterface:
+    def __init__(self, curValues, progValues, auto, availableProfiles, selectedPlant, unsentDataFlag, connected, port=str(serial.tools.list_ports.comports()[-1].device), baudrate=9600):
+        self.connected = connected
+        
+        
+        # Serielle Verindung konfigurieren
+        self.connection = serial.Serial(timeout=.1)
+        self.connection.baudrate = baudrate
+        self.connection.port = port
+        # Zeit in Sekunden, für die auf eine Antwort vom Raspi gewartet werden soll
+        self.dataRecievingTimeOut = 3
+
+        # Optionales Bestimmen des Betriebsystems um bessere Fehlermeldungen auszugeben
+        self.osType = platform.system()
+
+        # Verbindungsaufbau
+        try:
+            self.connection.open()
+            # Beim Testen mit einem anderen seriellen Gerät war eine Verzögerung zwischen dem Eröffnen der Verbindung und der ersten
+            # Datenübertragung notwendig, sonst gingen Daten verloren. Warum? Keine Ahnung.
+            time.sleep(2)
+            self.testConnection()
+            self.connected[0] = True
+
+        # Ausgabe von möglichen Fehlerszenarien, die beim Testen aufgetreten sind
+        except serial.SerialTimeoutException:
+            messagebox.showerror("Verbindung ausgelaufen", "Die Setzlingsanlage hat nicht innerhalb einer angemessenen Zeit geantwortet. Die Verbindung wurde unterbrochen.")
+        except serial.serialutil.SerialException as e:
+            if "Permission denied" in str(e) and self.osType == "Linux":
+                messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nHaben sie die nötigen Berechtigungen, um auf diesen Port zuzugreifen? Probieren Sie es mit: \n\nsudo chmod a+rw " + str(port))
+            else:
+                messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nAuf Port:\n\n" + str(port))
+        except ConnectionError as e:
+            messagebox.showerror("Synchronisierung fehlgeschlagen", "Synchronisierung mit der Setzlingsanlage konnte nicht korrekt durchgeführt werden. Ist das richtige Gerät verbunden?")
+    
+
+    def sendData(self, data, waitForResponse=True):
+        # Schickt Daten zum Raspberry Pico und wartet auf eine Antwort
+        # Das Warten auf die Antwort blockiert zwar den aktuellen Thread, ist aber in den meisten Fällen sinnvoll:
+        # 1. Bei "Anfragen", also wenn Werte vom Raspi zum PC übertragen werden sollen, wird sowieso nur eine Anfrage gleichzeitig
+        #    abgeschickt, da mehrere Anfragen zu Chaos und einem deutlichen komplizierteren Protokoll führen würden.
+        # 2. Bei "Befehlen" bzw. dem Übertragen von Werten vom PC zum Raspi dient die Antwort vom Raspi als Bestätigung, dass die
+        #    Verbindung noch am Leben ist.
+        # Im Ausnahmefall kann mit "waitForResponse=False" auch auf das Warten verzichtet werden.
+
+        # Es wird vor jede Nachricht der Prefix "pc:" angehängt, um das Zuordnen von Nachrichten und damit das Debugging einfacher
+        # zu machen
+        message = "pc:" + str(data)
+        self.connection.write(bytes(message, "utf-8"))
+
+        if waitForResponse:
+            startTimeStamp = time.time()
+            while self.connection.in_waiting == 0:
+                # Kommt in einer angemessenen Zeit keine Antwort vom Raspi, deutet das auf ein Problem mit der Verbindung hin und
+                # führt zu einem Timeout.
+                if (time.time() - startTimeStamp) >= self.dataRecievingTimeOut:
+                    self.disconnect()
+                    raise serial.SerialTimeoutException
+            
+            if self.connection.in_waiting > 0:
+                recieved = self.connection.readline().decode()
+                return recieved.replace("\r","").replace("\n","")
+    
+
+    def testConnection(self):
+        # Dient zum Testen der Verbindung. Der PC schickt eine "pc:sync" und erwartet darauf ein "sa:sync" vom Raspi. Erhält er das,
+        # wird Verbindung als funktionierend bzw. "synchronisiert" angesehen.
+        response = self.sendData("sync")
+        print(response)
+        if not response == "sa:sync":
+            self.disconnect()
+            raise ConnectionError
+
+
+    def disconnect(self):
+        self.connection.close()
+        self.connected[0] = False

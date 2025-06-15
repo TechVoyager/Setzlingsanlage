@@ -1,7 +1,7 @@
 # Dieses Programm erzeugt ein GUI, mit welchem sich die Setzlingsanlage von einem PC aus überwachen und steuern lässt.
 # Dieses Programm wird NICHT auf den Raspberry Pico geladen.
 
-from GUI import GUI
+from GUI import GUI, SerialInterface
 import threading
 
 # curVals sind die aktuellen Messwerte, progVals die programmierten Soll-Werte
@@ -19,9 +19,14 @@ def run_gui(curValues, progValues, auto, availableProfiles, selectedPlant):
     return
 
 
-t1 = threading.Thread(target=run_gui, args=[curVals, progVals, auto, availableProfiles, selectedPlant])
-t1.start()
+def run_serial(curValues, progValues, auto, availableProfiles, selectedPlant, unsentDataFlag, connected):
+    connection = SerialInterface(curValues, progValues, auto, availableProfiles, selectedPlant, unsentDataFlag, connected)
 
-while t1.is_alive():
-    connected[0] = bool(input())
-    print(connected)
+
+t1 = threading.Thread(target=run_gui, args=[curVals, progVals, auto, availableProfiles, selectedPlant])
+t2 = threading.Thread(target=run_serial, args=[curVals, progVals, auto, availableProfiles, selectedPlant, unsentDataFlag, connected])
+t1.start()
+t2.start()
+
+t1.join()
+t2.join()
