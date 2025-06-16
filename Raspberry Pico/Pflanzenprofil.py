@@ -58,38 +58,23 @@ class Pflanzenprofil():
         self.einlesen_csv() #csv-Datei wieder einlesen mit neuer Pflanzenart
         return "Neue Pflanzenart hinzugefügt"
     
-"""    # Funktion schreibt neue Werte in die CSV-Datei
-    def neue_Pflanzenart(self, Pflanzenart, Gießhaeufigkeit, Tagdauer, Nachtdauer, 
-                         BodentempTag, BodentempNacht, Lufttemp, Luftfeuchte, Bodenfeuchte):
-        Werteliste = [Pflanzenart, Gießhaeufigkeit, Tagdauer, Nachtdauer, 
-                         BodentempTag, BodentempNacht, Lufttemp, Luftfeuchte, Bodenfeuchte]
-        dirName = os.path.dirname(__file__)
-        if Pflanzenart not in self.Pflanzen_dict:
-            #Datei öffnen
-            with open(dirName + "/Data/Pflanzenprofile.csv", mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
-                writer_object = csv.writer(csvdatei, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
-                writer_object.writerow(Werteliste)
-        elif Pflanzenart in self.Pflanzen_dict:
-            with open(dirName + "/Data/Pflanzenprofile.csv", mode='w', encoding='utf-8-sig', newline= '') as csvdatei:
-                writer_object = csv.writer(csvdatei, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
-                writer_object.writerow(Werteliste)
-        # elif pflanzenart in dict -> in self.pflanzendict neue werte schreiben mit w
-        self.einlesen_csv() #csv-Datei wieder einlesen mit neuer Pflanzenart
-        return "Neue Pflanzenart hinzugefügt"
-"""    
 
-neuesPflanzendict = {"Pflanzenprofil" : "Salat","Gießhaeufigkeit (pro Woche)": 1, "Tagdauer (in h)": 2, "Nachtdauer (in h)": 3,
-                   "Bodentemperatur Tag (in °C)": 4, "Bodentemperatur Nacht (in °C)": 5, "Lufttemperatur (in °C)": 6, 
-                   "Luftfeuchte (in %RH)": 7, "Bodenfeuchte (in %RH)": 8}
-verbessertesPflanzendict = {"Pflanzenprofil" : "Salat","Gießhaeufigkeit (pro Woche)": 8, "Tagdauer (in h)": 7, "Nachtdauer (in h)": 6,
-                   "Bodentemperatur Tag (in °C)": 5, "Bodentemperatur Nacht (in °C)": 4, "Lufttemperatur (in °C)": 3, 
-                   "Luftfeuchte (in %RH)": 2, "Bodenfeuchte (in %RH)": 1}
-print(neuesPflanzendict)
+
+neuesPflanzendict = {"Pflanzenart" : "Salat","Gießhaeufigkeit": 1, "Tagdauer": 2, "Nachtdauer": 3,
+                   "Bodentemperatur_tag": 4, "Bodentemperatur_nacht": 5, "Lufttemperatur": 6, 
+                   "Luftfeuchte": 7, "Bodenfeuchte": 8}
+verbessertesPflanzendict = {"Pflanzenart" : "Salat","Gießhaeufigkeit": 8, "Tagdauer": 7, "Nachtdauer": 6,
+                   "Bodentemperatur_tag": 5, "Bodentemperatur_nacht": 4, "Lufttemperatur": 3, 
+                   "Luftfeuchte": 2, "Bodenfeuchte": 1}
+#print(neuesPflanzendict)
 Pflanze = Pflanzenprofil()
 #print(Pflanze.Pflanzen_dict)
 #print(Pflanze.gib_Pflanzenwerte("Erdbeeren"))
+# Ausgabe: {'Pflanzenart': 'Erdbeeren', 'Gießhaeufigkeit': '2', 'Tagdauer': '10', 'Nachtdauer': '8', 
+#           'Bodentemperatur Tag': '20', 'Bodentemperatur Nacht': '10', 'Lufttemperatur': '20', 
+#           'Luftfeuchte': '70', 'Bodenfeuchte': '0'}
 #print(Pflanze.gib_Pflanzenwerte("Salat"))
 #print(Pflanze.neue_Pflanzenart('Karotte',2,3,4,5,6,7,8, 9))
 #print(Pflanze.gib_Pflanzenwerte("Karotte"))
-print(Pflanze.neue_Pflanzenart("Salat", neuesPflanzendict))
-print(Pflanze.neue_Pflanzenart("Salat", verbessertesPflanzendict))
+#print(Pflanze.neue_Pflanzenart("Salat", neuesPflanzendict))
+#print(Pflanze.neue_Pflanzenart("Salat", verbessertesPflanzendict))
