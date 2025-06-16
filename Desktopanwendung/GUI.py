@@ -19,29 +19,28 @@ class GUI:
     dirName = os.path.dirname(__file__)
 
 
-    def __init__(self, updateInterval, curValues, progValues, auto, plantList, selectedPlant, unsentDataFlag, connected):
+    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval):
         # Die meisten Parameter werden hier sowohl als "regulärer" Python-Datentyp, als auch als TK-Datentyp gespeichert.
         # Der Grund dafür ist die Kommunikation mit dem Pico: Das GUI wird am Ende in einem Thread laufen, die
         # serielle Schnittstelle in einem anderen. Um Daten zwischen den Threads auszutauschen, werden diese als globale
         # Variablen im Heap gespeichert. Alle Daten, die zwischen den Threads ausgetauscht werden, werden als Referenz
         # an diese Klasse übergeben, damit Änderungen direkt im Heap passieren.
         # Da nur Listen(-ähnliche) Datentypen als Referenz übergeben werden, werden alle andere Datentypen in einer
-        # Liste verpackt
+        # list oder einem dict verpackt.
 
         self.__updateInterval = updateInterval
         # Dictionary für die Ist-Werte
         self.__curValues = curValues
         # Dictionary für die programmierten bzw. Soll-Werte
         self.__progValues = progValues
-        self._plantList = plantList
+        self._plantList = availableProfiles
         self._selectedPlant = selectedPlant
-        # Variable für den Automatik- bzw. manuellen Modus
-        self._auto = auto
-        self._connected = connected
 
-        # Wird auf True gesetzt um der Seriellen Schnittstelle zu signalisieren, dass es neue Daten gibt, die auf den
-        # Pico übertragen weren müssen
-        self.__unsentData = unsentDataFlag
+        # dict welches die Zustände des aktuellen Programms enthält: 
+        # "auto" für den Automatikmodus, "unsentData" als Signal, dass Daten zum Raspi übertragen werden sollen
+        # "connected" für den Zustand der seriellen Schnittstelle, "running" für den Zustand des GUIs
+        self.__statusFlags = statusFlags
+
         
         # Initialisierung des des Fensters
         self.root = tk.Tk()
@@ -52,7 +51,7 @@ class GUI:
         self.__TKcurHumidity = tk.IntVar(self.root, value=curValues["humidity"])
         self.__TKcurMoisture = tk.IntVar(self.root, value=curValues["moisture"])
         self.__TKcurLightState = tk.StringVar(self.root, value=curValues["lightState"])
-        self.__TKauto = tk.BooleanVar(self.root, value=auto[0])
+        self.__TKauto = tk.BooleanVar(self.root, value=self.__statusFlags["auto"])
 
         # Enthält die Eingabe in das Such-Feld bei der Auswahl des Pflanzenprofils
         self.__TKplantEntryVar = tk.StringVar(self.root, value=selectedPlant[0])
@@ -114,6 +113,8 @@ class GUI:
 
         self.update()
         self.root.mainloop()
+        self.__statusFlags["running"] = False
+        print("closing")
 
 
     def update(self):
@@ -122,7 +123,7 @@ class GUI:
         self.__TKcurMoisture.set(self.__curValues["moisture"])
         self.__TKcurLightState.set(self.__curValues["lightState"])
 
-        if self._connected[0]:
+        if self.__statusFlags["connected"]:
             self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
         else:
             self.__connectionStatusField.config(text="Getrennt", style="Red.TLabel")
@@ -197,10 +198,10 @@ class GUI:
 
 
     def toggleEntryFields(self):
-        self._auto[0] = self.__TKauto.get()
+        self.__statusFlags["auto"] = self.__TKauto.get()
 
         for field in self.__entryFields:
-            if self._auto[0]:
+            if self.__statusFlags["auto"]:
                 field.config(state="disabled")
             else:
                 field.config(state="normal")
@@ -245,7 +246,7 @@ class GUI:
     def profileToPico(self):
         # Schickt das aktuell ausgewählte Pflanzenprofil und die Soll-Werte zum Pico
         plantToSend = self.__TKplantEntryVar.get()
-        if not self._connected[0]:
+        if not self.__statusFlags["connected"]:
             messagebox.showerror("Verbindung getrennt", "Es besteht keine Verbindung zur Setzlingsanlage. Überprüfen sie das Kabel und die Verbindungseinstellungen.")
             return
         
@@ -253,35 +254,41 @@ class GUI:
             messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreiben Sie den vollständigen Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wählen Sie ein Profil aus der Liste aus.")
             return
 
-        if not self.__unsentData[0]:
-            self.__unsentData[0] = True
+        if not self.__statusFlags["unsentData"]:
+            self.__statusFlags["unsentData"] = True
         else:
             messagebox.showerror("Zu viele Daten", "Es wurden noch nicht alle Daten auf die Setzlingsanlage übertragen. Bitte versuchen Sie es gleich erneut.")
 
 
 class SerialInterface:
-    def __init__(self, curValues, progValues, auto, availableProfiles, selectedPlant, unsentDataFlag, connected, port=str(serial.tools.list_ports.comports()[-1].device), baudrate=9600):
-        self.connected = connected
+    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=str(serial.tools.list_ports.comports()[-1].device), baudrate=9600):
+        self.__statusFlags = statusFlags
         
         
-        # Serielle Verindung konfigurieren
+        # Serielle Verbindung konfigurieren
         self.connection = serial.Serial(timeout=.1)
         self.connection.baudrate = baudrate
         self.connection.port = port
         # Zeit in Sekunden, für die auf eine Antwort vom Raspi gewartet werden soll
         self.dataRecievingTimeOut = 3
 
-        # Optionales Bestimmen des Betriebsystems um bessere Fehlermeldungen auszugeben
+        # Optionales Bestimmen des Betriebsystems, um bessere Fehlermeldungen auszugeben
         self.osType = platform.system()
 
-        # Verbindungsaufbau
         try:
+            # Verbindungsaufbau
             self.connection.open()
             # Beim Testen mit einem anderen seriellen Gerät war eine Verzögerung zwischen dem Eröffnen der Verbindung und der ersten
             # Datenübertragung notwendig, sonst gingen Daten verloren. Warum? Keine Ahnung.
             time.sleep(2)
             self.testConnection()
-            self.connected[0] = True
+            self.__statusFlags["connected"] = True
+
+            while self.__statusFlags["running"]:
+                print("running")
+            print("disconnecting")
+            self.sendData("disconnect", waitForResponse=False)
+            self.disconnect()
 
         # Ausgabe von möglichen Fehlerszenarien, die beim Testen aufgetreten sind
         except serial.SerialTimeoutException:
@@ -297,7 +304,7 @@ class SerialInterface:
 
     def sendData(self, data, waitForResponse=True):
         # Schickt Daten zum Raspberry Pico und wartet auf eine Antwort
-        # Das Warten auf die Antwort blockiert zwar den aktuellen Thread, ist aber in den meisten Fällen sinnvoll:
+        # Das Warten auf die Antwort blockiert zwar den aktuellen Thread, ist aber in den meisten Fällen sinnvoll/ nicht schlimm:
         # 1. Bei "Anfragen", also wenn Werte vom Raspi zum PC übertragen werden sollen, wird sowieso nur eine Anfrage gleichzeitig
         #    abgeschickt, da mehrere Anfragen zu Chaos und einem deutlichen komplizierteren Protokoll führen würden.
         # 2. Bei "Befehlen" bzw. dem Übertragen von Werten vom PC zum Raspi dient die Antwort vom Raspi als Bestätigung, dass die
@@ -324,8 +331,8 @@ class SerialInterface:
     
 
     def testConnection(self):
-        # Dient zum Testen der Verbindung. Der PC schickt eine "pc:sync" und erwartet darauf ein "sa:sync" vom Raspi. Erhält er das,
-        # wird Verbindung als funktionierend bzw. "synchronisiert" angesehen.
+        # Dient zum Testen der Verbindung. Der PC schickt ein "pc:sync" und erwartet darauf ein "sa:sync" vom Raspi. Erhält er das,
+        # wird die Verbindung als funktionierend bzw. "synchronisiert" angesehen.
         response = self.sendData("sync")
         print(response)
         if not response == "sa:sync":
@@ -335,4 +342,4 @@ class SerialInterface:
 
     def disconnect(self):
         self.connection.close()
-        self.connected[0] = False
+        self.__statusFlags["connected"] = False

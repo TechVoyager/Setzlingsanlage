@@ -7,24 +7,24 @@ import threading
 # curVals sind die aktuellen Messwerte, progVals die programmierten Soll-Werte
 curVals = {"airTemp": 0, "humidity": 0, "moisture": 0, "lightState": "aus"}
 progVals = []
-auto = [True]
 availableProfiles = ["Tomate", "Erdbeere"]
 selectedPlant = ["Tomate"]
-unsentDataFlag = [False]
-connected = [False]
+# "statusFlags" ist ein dict, welches die Zustände des aktuellen Programms enthält: 
+# "auto" für den Automatikmodus, "unsentData" als Signal, dass Daten zum Raspi übertragen werden sollen
+# "connected" für den Zustand der seriellen Schnittstelle, "running" für den Zustand des GUIs
+statusFlags = {"auto": True, "unsentData": False, "connected": False, "running": True}
 
 
-def run_gui(curValues, progValues, auto, availableProfiles, selectedPlant):
-    gui = GUI(updateInterval=1000, curValues=curValues, progValues=progValues, auto=auto, plantList=availableProfiles, selectedPlant=selectedPlant, unsentDataFlag=unsentDataFlag, connected=connected)
-    return
+def run_gui(curValues, progValues, availableProfiles, selectedPlant, statusFlags):
+    gui = GUI(curValues, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval=1000)
 
 
-def run_serial(curValues, progValues, auto, availableProfiles, selectedPlant, unsentDataFlag, connected):
-    connection = SerialInterface(curValues, progValues, auto, availableProfiles, selectedPlant, unsentDataFlag, connected)
+def run_serial(curValues, progValues, availableProfiles, selectedPlant, statusFlags):   
+    connection = SerialInterface(curValues, progValues, availableProfiles, selectedPlant, statusFlags)
 
 
-t1 = threading.Thread(target=run_gui, args=[curVals, progVals, auto, availableProfiles, selectedPlant])
-t2 = threading.Thread(target=run_serial, args=[curVals, progVals, auto, availableProfiles, selectedPlant, unsentDataFlag, connected])
+t1 = threading.Thread(target=run_gui, args=[curVals, progVals, availableProfiles, selectedPlant, statusFlags])
+t2 = threading.Thread(target=run_serial, args=[curVals, progVals, availableProfiles, selectedPlant, statusFlags])
 t1.start()
 t2.start()
 
