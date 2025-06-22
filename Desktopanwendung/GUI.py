@@ -281,11 +281,15 @@ class SerialInterface:
             # Beim Testen mit einem anderen seriellen Gerät war eine Verzögerung zwischen dem Eröffnen der Verbindung und der ersten
             # Datenübertragung notwendig, sonst gingen Daten verloren. Warum? Keine Ahnung.
             time.sleep(2)
+            self.connection.flush()
             self.testConnection()
             self.__statusFlags["connected"] = True
 
             while self.__statusFlags["running"]:
-                print("running")
+                if self.__statusFlags["unsentData"]:
+                    response = self.sendData(selectedPlant)
+                    print(response)
+                    self.__statusFlags["unsentData"] = False
             print("disconnecting")
             self.sendData("disconnect", waitForResponse=False)
             self.disconnect()
@@ -300,6 +304,8 @@ class SerialInterface:
                 messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nAuf Port:\n\n" + str(port))
         except ConnectionError as e:
             messagebox.showerror("Synchronisierung fehlgeschlagen", "Synchronisierung mit der Setzlingsanlage konnte nicht korrekt durchgeführt werden. Ist das richtige Gerät verbunden?")
+        finally:
+            self.disconnect()
     
 
     def sendData(self, data, waitForResponse=True):
@@ -311,9 +317,9 @@ class SerialInterface:
         #    Verbindung noch am Leben ist.
         # Im Ausnahmefall kann mit "waitForResponse=False" auch auf das Warten verzichtet werden.
 
-        # Es wird vor jede Nachricht der Prefix "pc:" angehängt, um das Zuordnen von Nachrichten und damit das Debugging einfacher
+        # Es wird vor jede Nachricht der Prefix "pc|" angehängt, um das Zuordnen von Nachrichten und damit das Debugging einfacher
         # zu machen
-        message = "pc:" + str(data)
+        message = "pc|" + str(data)
         self.connection.write(bytes(message, "utf-8"))
 
         if waitForResponse:
@@ -322,21 +328,20 @@ class SerialInterface:
                 # Kommt in einer angemessenen Zeit keine Antwort vom Raspi, deutet das auf ein Problem mit der Verbindung hin und
                 # führt zu einem Timeout.
                 if (time.time() - startTimeStamp) >= self.dataRecievingTimeOut:
-                    self.disconnect()
                     raise serial.SerialTimeoutException
             
             if self.connection.in_waiting > 0:
                 recieved = self.connection.readline().decode()
-                return recieved.replace("\r","").replace("\n","")
+                processed = recieved.replace("\r","").replace("\n","")
+                print(processed)
+                return processed
     
 
     def testConnection(self):
-        # Dient zum Testen der Verbindung. Der PC schickt ein "pc:sync" und erwartet darauf ein "sa:sync" vom Raspi. Erhält er das,
+        # Dient zum Testen der Verbindung. Der PC schickt ein "pc|sync" und erwartet darauf ein "sa|sync" vom Raspi. Erhält er das,
         # wird die Verbindung als funktionierend bzw. "synchronisiert" angesehen.
         response = self.sendData("sync")
-        print(response)
-        if not response == "sa:sync":
-            self.disconnect()
+        if not response == "sa|sync":
             raise ConnectionError
 
 
