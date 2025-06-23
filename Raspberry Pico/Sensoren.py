@@ -1,18 +1,16 @@
-"""# Modul für sämtliche Sensor-Klassen
-#from abc import ABC, abstractmethod  Funktioniert nur auf dem PC!!!!
-from machine import ADC, Pin  #funktioniert nur auf MicroPython!!! nicht auf dem PC mit normalem Python
-from time import ticks_ms, ticks_diff 
-#ticks_ms() gibt die aktuellen Millisekunden seit start zurück
-#ticks_diff(a, b) #berechnet den Unterschied zw. zwei zeitpunkten
-import dht #für DHT11 Temperatur und FTK Sensor 
+import board   #geändert statt machine.pin
+import analogio #geändert für machine
+import adafruit_dht 
+import time 
 
+#abstrakte Klasse:
 class Sensor():
-        def __init__(self, name, location, unit, interval_ms):
+        def __init__(self, name, location, unit, interval_s):
                 self.name = name
                 self.location = location
                 self.unit = unit
-                self.interval = interval_ms  #Zeitintervall in ms
-                self.last_measurement = ticks_ms()  #Startzeitpunkt der letzten Messung
+                self.interval = interval_s  #Zeitintervall in s
+                self.last_measurement = time.monotonic()  #Startet wie ticks_ms und zählt hoch in Sekunden
 
         def measure(self): #alle Unterklassen müssen die Funktion Messen haben!
                 raise NotImplementedError("Die Methode Measure (Messen) muss unbedingt in jeder Sensor Klasse deklariert sein!!")
@@ -20,14 +18,18 @@ class Sensor():
         #irgendein Fehler hier bedeutet der Fehler, dass measure nicht implementiert wurde
 
         def should_measure(self):
-                current_time = ticks_ms()  #aktuelle Zeit seit Start des Picos
-                time_since_last = ticks_diff(current_time, self.last_measurement) #berechnet den Unterschied zw. aktueller und letzter Messzeit
+                current_time = time.monotonic()  #aktuelle Zeit seit Start des Picos
+                time_since_last = current_time - self.last_measurement #berechnet den Unterschied zw. aktueller und letzter Messzeit
+                """print(time_since_last >= self.interval, time_since_last)
+                print(f"aktuelle Zeit: {current_time} ")
+                print(f"times_since_last Zeit: {time_since_last} ")"""
                 return time_since_last >= self.interval   #wenn der Unterschied der Messzeit größer oder gleich vom Interval ist wird True ausgegeben, sonst False
         
         def update_timestamp(self):
-                self.last_measurement = ticks_ms() #der letzte Messwert wird neu aktualisiert
+                self.last_measurement = time.monotonic() #der letzte Messwert wird neu aktualisiert
+                print("passt")
         
-
+#zahl wird immer größer bitte änern delta t
 
 
 #Unterklasse Bodenfeutchitgkeitssensorik 
@@ -38,12 +40,11 @@ class Sensor():
 #mit ADC (analog_Digital-Converter)
 class Soilmoisturemeter(Sensor): #Bodenfeuchtigkeitsmesser
 
-        def __init__(self, location, pin_gp, interval_ms):
-                super().__init__("Soilmoisturemeter", location, "%", interval_ms)  #Die Einheit(unit) ist in Prozent angegeben #super macht, dass man nicht erneut die Elternklasse initialisieren muss also self.name z.B., da wir ja die Einheit festlegen)
-                self.adc = ADC(Pin(pin_gp)) #ist zwar am Pin 31 aber ist GP26
-
+        def __init__(self, location, pin, interval_s):
+                super().__init__("Soilmoisturemeter", location, "%", interval_s)  #Die Einheit(unit) ist in Prozent angegeben #super macht, dass man nicht erneut die Elternklasse initialisieren muss also self.name z.B., da wir ja die Einheit festlegen)
+                self.adc = analogio.AnalogIn(pin)
         def measure(self):
-               raw = self.adc.read_u16()  #Raspberry Pi Pico hat 12 Bit ADC aber MircoPython skaliert auf 16 Bit hoch #Rohwert (0-65535 lesen)
+               raw = self.adc.value  #Raspberry Pi Pico hat 12 Bit ADC aber MircoPython skaliert auf 16 Bit hoch #Rohwert (0-65535 lesen)
                percent = (raw / 65535) * 100  #wandelt die Zahl 0-65535 in Prozent um 
                return round(percent, 1) #wird noch auf eins gerundet
         
@@ -54,42 +55,18 @@ class Soilmoisturemeter(Sensor): #Bodenfeuchtigkeitsmesser
 
 class Temperature_humidity_sensor(Sensor): #Temperature and humidity sensor
 
-        def __init__(self, location, pin_gp, interval_ms):
-                super().__init__("Temperature_humidity_sensor", location, "%", interval_ms)
-                self.sensor = dht.DHT11(Pin(pin_gp)) #Pin(15) bedeutet nutze den GPIO15 als Eingang, dht.DHT11 erzeugt ein Objekt, das weiß wie man mit DHT11 kommunizieren muss
+        def __init__(self, location, pin, interval_s):
+                super().__init__("Temperature_humidity_sensor", location, "%", interval_s)
+                self.sensor = adafruit_dht.DHT11(pin) #Pin(15) bedeutet nutze den GPIO15 als Eingang, dht.DHT11 erzeugt ein Objekt, das weiß wie man mit DHT11 kommunizieren muss
                 
         def measure(self):
-                self.sensor.measure() #Sensor startet Messung
-                temperature = self.sensor.temperature() #Temperatur in °C
-                humidity = self.sensor.humidity() #Luftfeuchtigkeit in %
-                return {"temperature": temperature, "humidity": humidity} #gibt dict. zurück mit Luftfeuchtigkeit und Temperatur
+                try:          
+                        self.sensor.measure() #Sensor startet Messung
+                        temperature = self.sensor.temperature #Temperatur in °C
+                        humidity = self.sensor.humidity  #Luftfeuchtigkeit in %
+                        return {"temperature": temperature, "humidity": humidity} #gibt dict. zurück mit Luftfeuchtigkeit und Temperatur
+                except RuntimeError as e:
+                        print(f"Fehler beim Lesen ({self.name}, bei {self.location}, {e})")
+                        return None
 
-sensor = Temperature_humidity_sensor("POS:B", 15, 10000)
-sensor2 = Soilmoisturemeter("POS:A", 29, 10000)
-sensors = [sensor, sensor2]
 
-
-while True:
-        for s in sensors:
-                if s.should_measure(): 
-                        value = s.measure()  #Methode Messen aufrufen
-                        print(f"{s.name} bei {s.location}: {value} {s.unit}") #Ausgabe der Werte
-                        s.update_timestamp()
-
-"""
-from machine import Pin
-import dht
-from time import sleep
-
-sensor = dht.DHT11(Pin(15))  # GPIO15
-
-sleep(2)
-
-while True:
-    try:
-        sensor.measure()
-        print("Temperatur:", sensor.temperature(), "°C")
-        print("Luftfeuchtigkeit:", sensor.humidity(), "%")
-    except Exception as e:
-        print("Fehler:", e)
-        sleep(2)

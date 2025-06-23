@@ -1,6 +1,5 @@
 import board
 import digitalio
-import time
 
 #Abstrakte Klasse der Aktoren
 class Actors():
@@ -33,7 +32,7 @@ class waterpump(Actors):
     def off(self):
         self.state = False
         print("Wasserpumpe hört auf")    
-
+        
 
 class Wateratomizer(Actors):
     def on(self):
