@@ -1,4 +1,9 @@
-# Hauptprogramm 
+# Hauptprogramm  
+#Automatik/manuell
+#pid IN extra datei
+
+
+
 import time
 
 #from Aktoren import *
@@ -20,6 +25,9 @@ pid_soil = PID(kp=1.0, ki=0.1, kd=0.05, setpoint=50) #Sollwert Luftfeuchtigkeit 
 pid_air = PID(kp=1.0, ki=0.1, kd=0.05, setpoint=30) #Sollwert Bodenfeuchtigkeit 30 Prozent
 
 #Setpoint = Sollwert; kp = proportional; ki = Interval nähert sich; kd achtet auf die Fehler der Zeit
+
+
+#testen automatisieren
 class PID:
     def __init__(self, kp, ki, kd, setpoint):
         self.kp = kp   
@@ -57,6 +65,7 @@ class PID:
  
 #Sensoren mit zeitabstand auslesen:
 #value is None: Schutzmaßnahme falls sensor bissle spinnt
+#Daten speichern 
 while True:
         for s in sensors:
                 if s.should_measure(): 
@@ -80,4 +89,10 @@ while True:
                             print(f"PID Soil Moisture Output: {output_soil}")
 
 
-#vielleicht noch min und max Output
+if output_temp > 30:
+     luefter.on()
+else: 
+     luefter.off()
+
+
+#vielleicht noch min und max Outputoutput
