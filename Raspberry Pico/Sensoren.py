@@ -11,6 +11,7 @@ class Sensor():
                 self.unit = unit
                 self.interval = interval_s  #Zeitintervall in s
                 self.last_measurement = time.monotonic()  #Startet wie ticks_ms und zählt hoch in Sekunden
+                
 
         def measure(self): #alle Unterklassen müssen die Funktion Messen haben!
                 raise NotImplementedError("Die Methode Measure (Messen) muss unbedingt in jeder Sensor Klasse deklariert sein!!")

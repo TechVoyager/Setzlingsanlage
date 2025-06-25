@@ -3,44 +3,72 @@ import digitalio
 
 #Abstrakte Klasse der Aktoren
 class Actors():
-        def __init__(self, name, pin, unit):  #kein @abstractmethod, da ich ja sonst bei jeder Unterklasse nen Init deklarieren müsste
+        def __init__(self, name, pin):  #kein @abstractmethod, da ich ja sonst bei jeder Unterklasse nen Init deklarieren müsste
                 self.name = name
                 self.pin = pin
-                self.unit = unit
                 self.state = False   #False weil ich es ja IMMER auf False setze, wäre quatsch auf State zu setzen
+                self.pin_obj = digitalio.DigitalInOut(pin)
+                self.pin_obj.direction = digitalio.Direction.OUTPUT
 
-        def on(self): #alle Klassen der Aktoren müssen An und Aus gehen
+
+        def on(self): #alle Klassen der Aktoren müssen An und Aus gehen 
             raise NotImplementedError("Jeder Aktor muss angeschaltet werden!!")
         
         def off(self): 
-            self.state = False
             raise NotImplementedError("Jeder Aktor muss angeschaltet werden!!")
 
 #Unterklasse Aktoren:
 class Fan(Actors):
     def on(self):
         self.state = True
+        self.pin_obj.value = True
         print("Lüfter läuft")
+
     def off(self):
         self.state = False
+        self.pin_obj.value = False
         print("Lüfter hört auf")
+
+    def set_speed(self, speed_percent):
+    #ab 50% ein sonst aus
+        if speed_percent >= 50:
+                self.on()
+        else:
+                self.off()
+        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
 
 class waterpump(Actors):
     def on(self):
         self.state = True
+        self.pin_obj.value = True
         print("Wasserpumpe läuft")
     def off(self):
         self.state = False
+        self.pin_obj.value = False
         print("Wasserpumpe hört auf")    
+    def set_speed(self, speed_percent):
+        if speed_percent >= 50:
+                self.on()
+        else:
+                self.off()
+        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
         
 
 class Wateratomizer(Actors):
     def on(self):
         self.state = True
+        self.pin_obj.value = True
         print("Wasserzerstäuber läuft")
     def off(self):
         self.state = False
+        self.pin_obj.value = False
         print("Wasserzerstäuber hört auf")   
+    def set_speed(self, speed_percent):
+        if speed_percent >= 50:
+                self.on()
+        else:
+                self.off()
+        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
 
 #class Heatingmat(Actors):
    
