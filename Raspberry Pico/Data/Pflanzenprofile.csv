@@ -1,5 +1,5 @@
 ﻿Pflanzenart;Gießhaeufigkeit;Tagdauer;Nachtdauer;Bodentemperatur_tag;Bodentemperatur_nacht;Lufttemperatur;Luftfeuchte;Bodenfeuchte
-Erdbeeren;2;10;8;20;10;20;70;0
-Rosen;2;16;8;21;18;20;75;0
-Gerbera;4;15;9;23;14;20;60;0
-Lilien;2;16;10;18;14;20;75;0
+Erdbeeren;3;14;10;20;16;20;70;75
+Rosen;3;16;8;20;18;20;65;65
+Gerbera;2;13;10;23;16;22;75;75
+Lilien;2;15;9;21;17;22;55;65

@@ -8,12 +8,15 @@ class Pflanzenprofil():
     def einlesen_csv(self):
         dirName = os.path.dirname(__file__)
         #__file__ gibt den Pfad bis einschlieslich der Datei an
-        # os.path.dirname() gibt den Ordnerpfad ohne den Dateinamen
-        # Datei wird wieder geachlossen nach with
+        # os.path.dirname() gibt den Ordnerpfad bis zur dem Ordner, in dem die Datei drin ist
+        # dirName gibt den Ordner an, in dem die Datei liegt, die ausgeführt wird
+        # csv-Datei wird wieder geschlossen nach with
         with open(dirName + "/Data/Pflanzenprofile.csv",mode='r', encoding='utf-8-sig', newline='') as csvdatei:
             #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen Buchstaben sind
-            #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden
-            csv_reader_object = csv.DictReader(csvdatei, delimiter=';') # delimiter: Trennzeichen in der csv_Datei
+            #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden -> genau wie bei der csv-Datei
+            csv_reader_object = csv.DictReader(csvdatei, delimiter=';') 
+            # csv.DictReader liest csv-Datei als Dict ein
+            # delimiter: Trennzeichen in der csv_Datei
             for zeile in csv_reader_object: # jede Zeile ist ein dict
                 schluessel = zeile[csv_reader_object.fieldnames[0]] # = zeile['Pflanzenprofil'] gibt in der Zeile den Wert zum Schlüssel 'Pflanzenprofil' -> Erdbeeren 
                 self.Pflanzen_dict[schluessel] = zeile # speichert die ganze Zeile unter dem Namen Schluessel

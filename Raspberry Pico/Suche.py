@@ -41,8 +41,8 @@ class Suche:
             self.passendePflanzenarten.append ("keine passende Pflanzenart gefunden")
         return self.passendePflanzenarten
 
-KlassenelementSuche = Suche()
-print("1", KlassenelementSuche.Pflanzenarten)
-print("2", KlassenelementSuche.passendePflanzenarten)
-print("3", KlassenelementSuche.Suche_Pflanzenart("Beere"))
-print("4", KlassenelementSuche.Suche_Pflanzenart("salat"))
+#KlassenelementSuche = Suche()
+#print("1", KlassenelementSuche.Pflanzenarten)
+#print("2", KlassenelementSuche.passendePflanzenarten)
+#print("3", KlassenelementSuche.Suche_Pflanzenart("Beere"))
+#print("4", KlassenelementSuche.Suche_Pflanzenart("salat"))
