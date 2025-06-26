@@ -70,11 +70,39 @@ class Wateratomizer(Actors):
                 self.off()
         print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
 
-#class Heatingmat(Actors):
-   
+class Heatingmat(Actors):
+    def on(self):
+          self.state = True
+          self.pin_obj.value = True # ist ein Befehl
+          print("Heizmatte ist an")
+    def off(self):
+          self.state = False
+          self.pin_obj.value = False
+          print("Heizmatte ist aus")
+    def set_speed(self, speed_percent):
+        if speed_percent >= 50:
+            self.on()
+        else:
+            self.off()
+        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")    
+     
+#speed_percent : Stellgröße vom pid zwischen 0 und 100, gibt an wie stark der Actro angesteuert wird
 
-#class Light(Actors):
-    
+class Light(Actors):
+    def on(self):
+          self.state = True
+          self.pin_obj.value = True
+          print("Licht ist an")
+    def off(self):
+          self.state = False
+          self.pin_obj.value = False
+          print("Licht ist aus")
+    def set_speed(self, speed_percent):
+        if self.speed_percent >= 50:
+            self.on()
+        else:
+            self.off() 
+        print(f"{self.name} - Stellgröße:  {speed_percent:.1f}%")
 
 
     
