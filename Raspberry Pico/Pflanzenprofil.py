@@ -4,6 +4,7 @@ import os
 
 class Pflanzenprofil():
     Pflanzen_dict = {} # Dictionary zum speichern der Pflanzenwerte
+
     #Funktion liest csv-Datei ein
     def einlesen_csv(self):
         dirName = os.path.dirname(__file__)
@@ -19,7 +20,8 @@ class Pflanzenprofil():
             # delimiter: Trennzeichen in der csv_Datei
             for zeile in csv_reader_object: # jede Zeile ist ein dict
                 schluessel = zeile[csv_reader_object.fieldnames[0]] # = zeile['Pflanzenprofil'] gibt in der Zeile den Wert zum Schlüssel 'Pflanzenprofil' -> Erdbeeren 
-                self.Pflanzen_dict[schluessel] = zeile # speichert die ganze Zeile unter dem Namen Schluessel
+                self.Pflanzen_dict[schluessel] = zeile # speichert die ganze Zeile unter dem Namen Schluessel, also der Pflanzenart
+
     # Funktion liest csv-Datei ein und schreibt die Werte in ein Dictionary
     def __init__(self):
         self.einlesen_csv()
@@ -42,8 +44,8 @@ class Pflanzenprofil():
              # Bestehende CSV-Datei einlesen
             with open(dirName + "/Data/Pflanzenprofile.csv", mode='r', encoding='utf-8-sig', newline='') as csvdatei:
                 reader = csv.DictReader(csvdatei, delimiter=';')
-                Bezeichner = reader.fieldnames  # z.B. ['Pflanzenprofil', 'Gießhaeufigkeit (pro Woche)', ...]
-                alle_zeilen = list(reader) # restliche Zeilen werden als Liste von Dictionaries gespeicher
+                Bezeichner = reader.fieldnames  # z.B. ['Pflanzenprofil', 'Tagdauer'...]
+                alle_zeilen = list(reader) # restliche Zeilen werden als Liste von Dictionaries gespeichert
             # gewünschte Zeile ändern
             for i, zeile in enumerate(alle_zeilen): 
                 #i : jeder Index der Liste(welche Zeile)
@@ -63,17 +65,17 @@ class Pflanzenprofil():
     
 
 
-neuesPflanzendict = {"Pflanzenart" : "Salat","Gießhaeufigkeit": 1, "Tagdauer": 2, "Nachtdauer": 3,
-                   "Bodentemperatur_tag": 4, "Bodentemperatur_nacht": 5, "Lufttemperatur": 6, 
-                   "Luftfeuchte": 7, "Bodenfeuchte": 8}
-verbessertesPflanzendict = {"Pflanzenart" : "Salat","Gießhaeufigkeit": 8, "Tagdauer": 7, "Nachtdauer": 6,
-                   "Bodentemperatur_tag": 5, "Bodentemperatur_nacht": 4, "Lufttemperatur": 3, 
-                   "Luftfeuchte": 2, "Bodenfeuchte": 1}
+#neuesPflanzendict = {"Pflanzenart" : "Salat", "Tagdauer": 2, "Nachtdauer": 3,
+#                   "Bodentemperatur_tag": 4, "Bodentemperatur_nacht": 5, "Lufttemperatur": 6, 
+#                   "Luftfeuchte": 7, "Bodenfeuchte": 8}
+#verbessertesPflanzendict = {"Pflanzenart" : "Salat", "Tagdauer": 7, "Nachtdauer": 6,
+#                   "Bodentemperatur_tag": 5, "Bodentemperatur_nacht": 4, "Lufttemperatur": 3, 
+#                   "Luftfeuchte": 2, "Bodenfeuchte": 1}
 #print(neuesPflanzendict)
-Pflanze = Pflanzenprofil()
+#Pflanze = Pflanzenprofil()
 #print(Pflanze.Pflanzen_dict)
 #print(Pflanze.gib_Pflanzenwerte("Erdbeeren"))
-# Ausgabe: {'Pflanzenart': 'Erdbeeren', 'Gießhaeufigkeit': '2', 'Tagdauer': '10', 'Nachtdauer': '8', 
+# Ausgabe: {'Pflanzenart': 'Erdbeeren', 'Tagdauer': '10', 'Nachtdauer': '8', 
 #           'Bodentemperatur Tag': '20', 'Bodentemperatur Nacht': '10', 'Lufttemperatur': '20', 
 #           'Luftfeuchte': '70', 'Bodenfeuchte': '0'}
 #print(Pflanze.gib_Pflanzenwerte("Salat"))
