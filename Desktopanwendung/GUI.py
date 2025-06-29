@@ -47,7 +47,8 @@ class GUI:
         self.root.title("SetzlingsUI")
 
         # Variablen müssen außerdem auch als tk-Variablen definiert werden, damit sie im Widget angezeigt werden können
-        self.__TKcurTemperature = tk.IntVar(self.root, value=curValues["airTemp"])
+        self.__TKcurAirTemp = tk.IntVar(self.root, value=curValues["airTemp"])
+        self.__TKcurSoilTemp = tk.IntVar(self.root, value=curValues["soilTemp"])
         self.__TKcurHumidity = tk.IntVar(self.root, value=curValues["humidity"])
         self.__TKcurMoisture = tk.IntVar(self.root, value=curValues["moisture"])
         self.__TKcurLightState = tk.StringVar(self.root, value=curValues["lightState"])
@@ -55,6 +56,16 @@ class GUI:
 
         # Enthält die Eingabe in das Such-Feld bei der Auswahl des Pflanzenprofils
         self.__TKplantEntryVar = tk.StringVar(self.root, value=selectedPlant[0])
+
+        self.__TKseedProgVals = {}
+        self.__TKplantProgVals = {}
+
+        # Die Soll-Werte werden zu TK-Variablen umformatiert
+        for key in self.__progValues:
+            if key.startswith("S_"):
+                self.__TKseedProgVals[key.strip("S_")] = tk.IntVar(self.root, value=self.__progValues[key])
+            if key.startswith("P_"):
+                self.__TKplantProgVals[key.strip("P_")] = tk.IntVar(self.root, value=self.__progValues[key])
 
         # Diese Art von Styling kann erst nach Initialisierung vorgenommen werden
         # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
@@ -90,25 +101,35 @@ class GUI:
         # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
         monitorFrame = ttk.Frame(mainframe, padding=10)
         monitorFrame.grid(column=0, row=2)
-        self.dataField(monitorFrame, "Lufttemperatur:", self.__TKcurTemperature, "°C", "./imgs/dark_temp.png", 0)
+        self.dataField(monitorFrame, "Lufttemperatur:", self.__TKcurAirTemp, "°C", "./imgs/dark_temp.png", 0)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=1)
         self.dataField(monitorFrame, "Luftfeuchtigkeit:", self.__TKcurHumidity, "%", "./imgs/dark_luft.png", 2)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=3)
-        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self.__TKcurMoisture, "%", "./imgs/dark_tropfen.png", 4)
+        self.dataField(monitorFrame, "Bodentemperatur:", self.__TKcurSoilTemp, "°C", "./imgs/dark_temp.png", 4)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=5)
-        self.dataField(monitorFrame, "Beleuchtung:", self.__TKcurLightState, "", "./imgs/dark_sonne.png", 6)
+        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self.__TKcurMoisture, "%", "./imgs/dark_tropfen.png", 6)
+        ttk.Frame(monitorFrame, height=10).grid(column=0, row=7)
+        self.dataField(monitorFrame, "Beleuchtung:", self.__TKcurLightState, "", "./imgs/dark_sonne.png", 8)
 
         # "Programm"-Bereich, zum Anzeigen der Soll-Werte
         programFrame = ttk.Frame(mainframe, padding=10)
         programFrame.grid(column=2, row=2, sticky="nw")
         plantSelectSection = self.scrollableSelection(programFrame, self.__TKplantEntryVar)
         plantSelectSection.grid(column=0, row=0, sticky="nw")
-        # TO-DO: Platzhalter gegen echte Werte austauschen
-        tilingFrame, entryFields = self.tiledDataField(parentFrame=programFrame, descriptors=range(6), variables=range(6), addInfo=range(6), columns=2)
-        tilingFrame.grid(column=1, row=0)
+        # Helperframe dient lediglich zum Einfügen von Padding
+        helperFrame = ttk.Frame(programFrame, padding=5)
+        helperFrame.grid(column=1, row=0, sticky="nsew")
+        # Notebook lassen Informationen auf mehreren Tabs anzeigen. In diesem Fall gibt es einen Tab für die Samen-Soll-Werte
+        # und einen für die Pflanzen-Soll-Werte
+        notebook = ttk.Notebook(helperFrame)
+        notebook.grid(column=0, row=0)
+        seedTilingFrame, seedEntryFields = self.tiledDataField(parentFrame=notebook, descriptors=list(self.__TKseedProgVals.keys()), variables=list(self.__TKseedProgVals.values()), addInfo=[], columns=2)
+        notebook.add(seedTilingFrame, text="Samenstadium")
+        saplingTilingFrame, saplingEntryFields = self.tiledDataField(parentFrame=notebook, descriptors=list(self.__TKplantProgVals.keys()), variables=list(self.__TKplantProgVals.values()), addInfo=[], columns=2)
+        notebook.add(saplingTilingFrame, text="Setzlingstadium")
 
         # Die Eingabefelder für die Soll-Werte werden in einer Liste gespeichert, damit sie einfach gesperrt bzw. entsperrt werden können
-        self.__entryFields = entryFields
+        self.__entryFields = seedEntryFields + saplingEntryFields
         
 
         self.update()
@@ -118,7 +139,7 @@ class GUI:
 
 
     def update(self):
-        self.__TKcurTemperature.set(self.__curValues["airTemp"])
+        self.__TKcurAirTemp.set(self.__curValues["airTemp"])
         self.__TKcurHumidity.set(self.__curValues["humidity"])
         self.__TKcurMoisture.set(self.__curValues["moisture"])
         self.__TKcurLightState.set(self.__curValues["lightState"])
@@ -127,6 +148,19 @@ class GUI:
             self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
         else:
             self.__connectionStatusField.config(text="Getrennt", style="Red.TLabel")
+
+
+        # Im Automatikmodus werden dauerhaft die aktuellen Soll-Werte gesendet
+        if not self.__statusFlags["auto"]:
+            # Pflanzenart wird auf manuell gesetzt um Zustand eindeutig zu machen
+            self.__progValues["Pflanzenart"] = "manuell"
+            # Soll-Werte werden in das "Speicherformat" zurückformatiert
+            for key in self.__TKseedProgVals:
+                self.__progValues["S_" + key] = self.__TKseedProgVals[key].get()
+            for key in self.__TKplantProgVals:
+                self.__progValues["P_" + key] = self.__TKplantProgVals[key].get()
+            
+            self.__statusFlags["unsentData"] = True
 
         # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
         self.root.after(self.__updateInterval, self.update)
@@ -154,19 +188,19 @@ class GUI:
 
     
     @staticmethod
-    def dataInput(parentFrame: ttk.Frame, descriptor: str, variable, addInfo: str, enabled: bool = False):
+    def dataInput(parentFrame: ttk.Frame, descriptor: str, variable, enabled: bool = False, *args):
         # Template für ein Widget, welches einen veränderlichen Datenpunkt darstellt
 
-        dataFrame = ttk.Frame(parentFrame, padding=15, style="Card")
+        dataFrame = ttk.Frame(parentFrame, padding=10)
         
-        ttk.Label(dataFrame, text=descriptor, font=smallText, padding="0 0 0 10").grid(column=0, row=0, columnspan=2, sticky="w")
-        entryField = ttk.Entry(dataFrame, textvariable=variable, width=10)
-        entryField.grid(column=0, row=1)
+        ttk.Label(dataFrame, text=descriptor, font=smallText, padding="0 0 0 10").grid(column=0, row=0, columnspan=2, sticky="nsew")
+        entryField = ttk.Entry(dataFrame, textvariable=variable, width=15)
+        entryField.grid(column=0, row=1, sticky="w")
         if enabled:
             entryField.config(state="normal")
         else:
             entryField.config(state="disabled")
-        ttk.Label(dataFrame, text=addInfo, padding="5 0 0 0").grid(column=1, row=1)
+        ttk.Label(dataFrame, text=args, padding="5 0 0 0").grid(column=1, row=1)
 
         # Gibt den dataFrame (in dem alles enthalten ist) zurück, damit gelayouted werden kann
         # und das entryField, damit die Eingabe später gesperrt und entsperrt werden kann
@@ -186,12 +220,8 @@ class GUI:
             for column in range(columns):
                 index = columns * row + column
                 if index <= len(descriptors) - 1:
-                    # das helperFrame ist dafür da, um ein Padding zwischen den dataInput-Widgets zu erzeugen
-                    helperFrame = ttk.Frame(tilingFrame, padding=5)
-                    dataFrame, entryField = self.dataInput(helperFrame, descriptors[index], variables[index], addInfo[index])
-                    # das dataFrame MUSS mit .grid eingelayouted werden, da es sonst nicht angezeigt wird
-                    dataFrame.grid(column=0, row=0)
-                    helperFrame.grid(column=column, row=row)
+                    dataFrame, entryField = self.dataInput(tilingFrame, descriptors[index], variables[index])
+                    dataFrame.grid(column=column, row=row, sticky="nsew")
                     dataFields.append(entryField)
         
         return tilingFrame, dataFields
@@ -261,9 +291,16 @@ class GUI:
 
 
 class SerialInterface:
-    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=str(serial.tools.list_ports.comports()[-1].device), baudrate=9600):
+    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=9600):
         self.__statusFlags = statusFlags
         
+        availablePorts = serial.tools.list_ports.comports()
+
+        if port == None and len(availablePorts) >= 1:
+            port = str(availablePorts[-1].device)
+        elif port == None and len(availablePorts) == 0:
+            return
+
         
         # Serielle Verbindung konfigurieren
         self.connection = serial.Serial(timeout=.1)

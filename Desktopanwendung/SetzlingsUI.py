@@ -5,8 +5,11 @@ from GUI import GUI, SerialInterface
 import threading
 
 # curVals sind die aktuellen Messwerte, progVals die programmierten Soll-Werte
-curVals = {"airTemp": 0, "humidity": 0, "moisture": 0, "lightState": "aus"}
-progVals = []
+curVals = {"airTemp": 0, "soilTemp":0, "humidity": 0, "moisture": 0, "lightState": "aus"}
+progVals = {"Pflanzenart" : "Salat", "P_Tagdauer": 2, "P_Nachtdauer": 3, "P_Bodentemperatur_tag": 6, 
+            "P_Bodentemperatur_nacht": 5, "P_Lufttemperatur": 6, "P_Luftfeuchte": 7, "P_Bodenfeuchte": 8,
+            "S_Tagdauer": 2, "S_Nachtdauer": 3, "S_Bodentemperatur_tag": 4, 
+            "S_Bodentemperatur_nacht": 5, "S_Lufttemperatur": 6, "S_Luftfeuchte": 7, "S_Bodenfeuchte": 8}
 availableProfiles = ["Tomate", "Erdbeere"]
 selectedPlant = ["Tomate"]
 # "statusFlags" ist ein dict, welches die Zustände des aktuellen Programms enthält: 
