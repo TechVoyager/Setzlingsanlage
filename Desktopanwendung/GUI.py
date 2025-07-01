@@ -293,56 +293,35 @@ class GUI:
 class SerialInterface:
     def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=9600):
         self.__statusFlags = statusFlags
-        
-        availablePorts = serial.tools.list_ports.comports()
 
-        if port == None and len(availablePorts) >= 1:
-            port = str(availablePorts[-1].device)
-        elif port == None and len(availablePorts) == 0:
-            return
-
-        
         # Serielle Verbindung konfigurieren
         self.connection = serial.Serial(timeout=.1)
         self.connection.baudrate = baudrate
-        self.connection.port = port
+
         # Zeit in Sekunden, für die auf eine Antwort vom Raspi gewartet werden soll
         self.dataRecievingTimeOut = 3
 
         # Optionales Bestimmen des Betriebsystems, um bessere Fehlermeldungen auszugeben
         self.osType = platform.system()
 
-        try:
-            # Verbindungsaufbau
-            self.connection.open()
-            # Beim Testen mit einem anderen seriellen Gerät war eine Verzögerung zwischen dem Eröffnen der Verbindung und der ersten
-            # Datenübertragung notwendig, sonst gingen Daten verloren. Warum? Keine Ahnung.
-            time.sleep(2)
-            self.connection.flush()
-            self.testConnection()
-            self.__statusFlags["connected"] = True
+        # Verbindungsaufbau
+        result = self.findPortAndConnect(port)
+        self.__statusFlags["connected"] = result
+
+        if result:
+            # Solange das GUI läuft, werden Daten gesendet und empfangen
 
             while self.__statusFlags["running"]:
                 if self.__statusFlags["unsentData"]:
                     response = self.sendData(selectedPlant)
                     print(response)
                     self.__statusFlags["unsentData"] = False
+            
             print("disconnecting")
             self.sendData("disconnect", waitForResponse=False)
             self.disconnect()
-
-        # Ausgabe von möglichen Fehlerszenarien, die beim Testen aufgetreten sind
-        except serial.SerialTimeoutException:
-            messagebox.showerror("Verbindung ausgelaufen", "Die Setzlingsanlage hat nicht innerhalb einer angemessenen Zeit geantwortet. Die Verbindung wurde unterbrochen.")
-        except serial.serialutil.SerialException as e:
-            if "Permission denied" in str(e) and self.osType == "Linux":
-                messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nHaben sie die nötigen Berechtigungen, um auf diesen Port zuzugreifen? Probieren Sie es mit: \n\nsudo chmod a+rw " + str(port))
-            else:
-                messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nAuf Port:\n\n" + str(port))
-        except ConnectionError as e:
-            messagebox.showerror("Synchronisierung fehlgeschlagen", "Synchronisierung mit der Setzlingsanlage konnte nicht korrekt durchgeführt werden. Ist das richtige Gerät verbunden?")
-        finally:
-            self.disconnect()
+        else:
+            print("Couldn't find device to connect")
     
 
     def sendData(self, data, waitForResponse=True):
@@ -365,7 +344,7 @@ class SerialInterface:
                 # Kommt in einer angemessenen Zeit keine Antwort vom Raspi, deutet das auf ein Problem mit der Verbindung hin und
                 # führt zu einem Timeout.
                 if (time.time() - startTimeStamp) >= self.dataRecievingTimeOut:
-                    raise serial.SerialTimeoutException
+                    raise serial.SerialTimeoutException("Timed out waiting for response")
             
             if self.connection.in_waiting > 0:
                 recieved = self.connection.readline().decode()
@@ -373,6 +352,43 @@ class SerialInterface:
                 print(processed)
                 return processed
     
+
+    def findPortAndConnect(self, port):
+        # Diese Funktion versucht sich mit allen zur Verfügung stehenden seriellen Ports zu verbinden und eine
+        # Synchronisierung durchzuführen, um zu testen, ob das Gerät auch tatsächlich die Setzlingsanlage ist.
+        # Zum Überschreiben der automatischen Portsuche kann der port im Vorhinein als Parameter gesetzt werden
+
+        availablePorts = serial.tools.list_ports.comports()
+
+        if not port == None:
+            # Ist ein Port bereits gegeben wird dieser verwendet
+            self.connection.port = port
+            self.connection.open()
+            self.connection.reset_input_buffer()
+            self.testConnection()
+            return True
+        else:
+            # Wir testen jeden verfügbaren Port. Wenn beim Verbindungsaufbau ein Fehler auftritt, gehen wir zum nächsten weiter
+            for avPort in availablePorts:
+                self.connection.port = str(avPort.device)
+                print(self.connection.port)
+                try:
+                    self.connection.open()
+                    self.connection.reset_input_buffer()
+                    self.testConnection()
+                    # Ist bis hierhin kein Fehler aufgetreten, ist die Verbindung erfolgreich aufgebaut
+                    return True
+                
+                except Exception as e:
+                    print(e)
+                    if "Permission denied" in str(e) and self.osType == "Linux":
+                        messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nHaben sie die nötigen Berechtigungen, um auf diesen Port zuzugreifen? Probieren Sie es mit: \n\nsudo chmod a+rw " + str(port))
+                    self.disconnect()
+                    
+            # Sind wir hier angekommen, heißt das, dass keine zufriedenstellende Verbindung aufgebaut werden konnte
+            return False
+
+
 
     def testConnection(self):
         # Dient zum Testen der Verbindung. Der PC schickt ein "pc|sync" und erwartet darauf ein "sa|sync" vom Raspi. Erhält er das,
