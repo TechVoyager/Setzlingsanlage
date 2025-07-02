@@ -13,14 +13,29 @@ class Pflanzenprofil():
         # dirName gibt den Ordner an, in dem die Datei liegt, die ausgeführt wird
         # csv-Datei wird wieder geschlossen nach with
         with open(dirName + "/Data/Pflanzenprofile.csv",mode='r', encoding='utf-8-sig', newline='') as csvdatei:
-            #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen Buchstaben sind
+            #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen 
+            # Buchstaben sind
             #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden -> genau wie bei der csv-Datei
             csv_reader_object = csv.DictReader(csvdatei, delimiter=';') 
             # csv.DictReader liest csv-Datei als Dict ein
             # delimiter: Trennzeichen in der csv_Datei
             for zeile in csv_reader_object: # jede Zeile ist ein dict
-                schluessel = zeile[csv_reader_object.fieldnames[0]] # = zeile['Pflanzenprofil'] gibt in der Zeile den Wert zum Schlüssel 'Pflanzenprofil' -> Erdbeeren 
-                self.Pflanzen_dict[schluessel] = zeile # speichert die ganze Zeile unter dem Namen Schluessel, also der Pflanzenart
+                schluessel = zeile[csv_reader_object.fieldnames[0]] # .fieldnames: Liste mit allen "Überschriften"; [0]:erste Spalte
+                                                                    # zeile['Pflanzenprofil'] gibt in der Zeile den Wert zum 
+                                                                    # Schlüssel 'Pflanzenprofil' -> Erdbeeren 
+                str_to_int = {} 
+                for schlüssel, wert in zeile.items():   #Schleife über alle Schlüssel-Wert-Paare in Pflanzenwerte
+                                                        # .items() gibt alle Einträge aus dem dict
+                    if schlüssel == csv_reader_object.fieldnames[0]:
+                        str_to_int[schlüssel] = wert # bleibt string
+                    else:
+                        try: # probiert string zu int zu konvertieren
+                            str_to_int[schlüssel] = int(wert) # Werte als int speichern
+                        except ValueError: # falls Konvertierung nicht möglich ist/ falls eine Fehlermeldung kommen sollte
+                            str_to_int[schlüssel] = wert # falls Konvertierung nicht möglich bleibt es ein string
+
+                self.Pflanzen_dict[schluessel] = str_to_int # speichert die ganze neue Zeile, mit den int-Werten,unter dem Namen 
+                                                            # schlüssel also bspw. Pflanzenart
 
     # Funktion liest csv-Datei ein und schreibt die Werte in ein Dictionary
     def __init__(self):
@@ -34,8 +49,8 @@ class Pflanzenprofil():
             return f"Pflanze '{Pflanze}' nicht gefunden"
         dict_aktuel = {}
         dict_aktuel["Pflanzenart"] = Pflanzenwerte['Pflanzenart'] # Pflanzenart immer drin, egal ob seed True oder False
-        for schlüssel, wert in Pflanzenwerte.items():   #Schleife über alle Schlüssel-Wert-Paare in Pflanzenerte
-                                                         # .items() gibt alle Einträge aus dem dict
+        for schlüssel, wert in Pflanzenwerte.items():   #Schleife über alle Schlüssel-Wert-Paare in Pflanzenwerte
+                                                        # .items() gibt alle Einträge aus dem dict
             if Wachstum and schlüssel.startswith("S_"):  # wenn Wachstum ==True und schlüssel mit S startet
                 dict_aktuel[schlüssel] = wert 
             elif not Wachstum and schlüssel.startswith("P_"):
