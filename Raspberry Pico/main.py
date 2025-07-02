@@ -11,6 +11,7 @@ from Aktoren import *
 from Sensoren import *
 from Pflanzenprofil import *
 from SerInterface import *
+from Suche import*
 from pid import PID 
 from hardware_setup import sensor_temp, sensor_soil, fan1, fan2, atomizer, pumpe, sensors
 #Regelung muss nich eingestellt werden!
@@ -31,11 +32,28 @@ pid_air.max_output = 100
 
 #Setpoint = Sollwert; kp = proportional; ki = Interval nähert sich; kd achtet auf die Fehler der Zeit
 
+#Klassenelemente erstellen
+plantprofile = Pflanzenprofil()
+
+#Variablen
+#Variablen zu Pflanzenarten
+plantspecies = "Erdbeeren" # wird geändert durch GUI
+seed = True # seed == True : Samen -- seed== False: Setzling
+            # wird geändert durch GUI
+plantvalues_dict = plantprofile.gib_Pflanzenwerte(plantspecies, seed)
+last_update_plantvalues = time.monotonic() # Zahl in s
+update_time_plantvalues = 5 * 24 * 60 * 60 # Tage in Sekunden
+
 
 #Sensoren mit zeitabstand auslesen:
 #value is None: Schutzmaßnahme falls sensor bissle spinnt
 #Daten speichern 
 while True:
+        # nach 5 Tagen neue Werte für die Pflanze ins dict schreiben (von Samen zu Setzling)
+        # seed muss dann noch aktualisier werden durchs GUI
+        current_time_plantvalues = time.monotonic()
+        if (current_time_plantvalues - last_update_plantvalues) > update_time_plantvalues:
+              plantvalues_dict = plantprofile.gib_Pflanzenwerte(plantspecies, seed)
         for s in sensors:
                 if s.should_measure(): 
                         value = s.measure()  #Methode Messen aufrufen

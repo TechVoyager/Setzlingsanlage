@@ -27,9 +27,20 @@ class Pflanzenprofil():
         self.einlesen_csv()
 
     # Funktion gibt die Werte der gewünschten Pflanze zurück
-    def gib_Pflanzenwerte(self, Pflanze):
-        return self.Pflanzen_dict.get(Pflanze, f"Pflanze '{Pflanze}' nicht gefunden") 
-        # falls es die Pflanze nicht gibt, wird "Pflanze nicht gefunden" zurückgegeben
+    def gib_Pflanzenwerte(self, Pflanze, Wachstum):
+        Pflanzenwerte = self.Pflanzen_dict.get(Pflanze)
+        if not Pflanzenwerte:
+            #falls es die Pflanzenart nicht in der csv-Datei gibt wird "Pflanze nicht gefunden" zurückgegeben
+            return f"Pflanze '{Pflanze}' nicht gefunden"
+        dict_aktuel = {}
+        dict_aktuel["Pflanzenart"] = Pflanzenwerte['Pflanzenart'] # Pflanzenart immer drin, egal ob seed True oder False
+        for schlüssel, wert in Pflanzenwerte.items():   #Schleife über alle Schlüssel-Wert-Paare in Pflanzenerte
+                                                         # .items() gibt alle Einträge aus dem dict
+            if Wachstum and schlüssel.startswith("S_"):  # wenn Wachstum ==True und schlüssel mit S startet
+                dict_aktuel[schlüssel] = wert 
+            elif not Wachstum and schlüssel.startswith("P_"):
+                dict_aktuel[schlüssel] = wert
+        return dict_aktuel
 
     #string mit Name und dict mit Werten als Übergabe bei neuer Pflanzenart
     def neue_Pflanzenart(self, Name, Pflanzendict):
@@ -65,9 +76,9 @@ class Pflanzenprofil():
     
 
 
-#neuesPflanzendict = {"Pflanzenart" : "Salat", "Tagdauer": 2, "Nachtdauer": 3,
-#                   "Bodentemperatur_tag": 4, "Bodentemperatur_nacht": 5, "Lufttemperatur": 6, 
-#                   "Luftfeuchte": 7, "Bodenfeuchte": 8}
+#neuesPflanzendict = {"Pflanzenart" : "Salat", "P_Tagdauer": 2, "P_Nachtdauer": 3,
+#                   "P_Bodentemperatur_tag": 4, "P_Bodentemperatur_nacht": 5, "P_Lufttemperatur": 6, 
+#                   "P_Luftfeuchte": 7, "P_Bodenfeuchte": 8}
 #verbessertesPflanzendict = {"Pflanzenart" : "Salat", "Tagdauer": 7, "Nachtdauer": 6,
 #                   "Bodentemperatur_tag": 5, "Bodentemperatur_nacht": 4, "Lufttemperatur": 3, 
 #                   "Luftfeuchte": 2, "Bodenfeuchte": 1}
@@ -83,3 +94,15 @@ class Pflanzenprofil():
 #print(Pflanze.gib_Pflanzenwerte("Karotte"))
 #print(Pflanze.neue_Pflanzenart("Salat", neuesPflanzendict))
 #print(Pflanze.neue_Pflanzenart("Salat", verbessertesPflanzendict))
+#profil = Pflanzenprofil()
+# Beispiel 1: Alle Profilwerte (erste 8 Spalten) für Erdbeeren
+#werte_profil = profil.gib_Pflanzenwerte("Erdbeeren", Wachstum=False)
+#print("Profilwerte:", werte_profil)
+
+# Beispiel 2: Nur Wachstumswerte (letzte 7 Spalten + Pflanzenart) für Erdbeeren
+#werte_wachstum = profil.gib_Pflanzenwerte("Erdbeeren", Wachstum=True)
+#print("Wachstumswerte:", werte_wachstum)
+
+# Beispiel 3: Pflanze, die nicht existiert
+#werte_unbekannt = profil.gib_Pflanzenwerte("Bananen", Wachstum=False)
+#print(werte_unbekannt)  # Gibt "Pflanze 'Bananen' nicht gefunden" zurück
