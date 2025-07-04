@@ -1,6 +1,6 @@
 #testen automatisieren
 import time
-from hardware_setup import sensor_temp, sensor_soil, fan1, fan2, atomizer, pumpe
+from hardware_setup import sensor_temp, sensor_soil, fan_inward, fan_outward, atomizer, pump
 #kp = Proportionalfaktor
 #ki = Integralfaktor
 #

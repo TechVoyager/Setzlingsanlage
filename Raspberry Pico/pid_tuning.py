@@ -1,5 +1,5 @@
 import time
-from hardware_setup import sensor_temp, sensor_soil, fan1, fan2, atomizer, pumpe
+from hardware_setup import sensor_temp, sensor_soil, fan_inward, fan_outward, atomizer, pumpe
 from pid import PID
 
 #Konstanten werden nicht verändert! (Deshalb Großbuchstaben)
