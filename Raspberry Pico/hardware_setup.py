@@ -14,3 +14,4 @@ atomizer = Wateratomizer("Zerstäuber", board.GP19)    #phys. Pin 25
 pumpe = waterpump("Wasserpumpe", board.GP14)      #phys. Pin 19
 heatingmat = Heatingmat("Heizmatte", board.GP22) #phys. Pin 29
 light = Light("Licht", board.GP15) #phys. Pin 20
+lampfan = Lampfan("Lampenlüfter", board.) #Boardpin noch aussu hen
