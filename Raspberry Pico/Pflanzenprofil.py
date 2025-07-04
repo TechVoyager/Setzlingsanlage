@@ -3,7 +3,11 @@ import csv
 import os
 
 class Pflanzenprofil():
-    Pflanzen_dict = {} # Dictionary zum speichern der Pflanzenwerte
+    # Funktion liest csv-Datei ein und schreibt die Werte in ein Dictionary
+    def __init__(self):
+        self.Pflanzen_dict = {} # Dictionary zum speichern der Pflanzenwerte
+        self.einlesen_csv()
+
 
     #Funktion liest csv-Datei ein
     def einlesen_csv(self):
@@ -37,10 +41,6 @@ class Pflanzenprofil():
                 self.Pflanzen_dict[schluessel] = str_to_int # speichert die ganze neue Zeile, mit den int-Werten,unter dem Namen 
                                                             # schlüssel also bspw. Pflanzenart
 
-    # Funktion liest csv-Datei ein und schreibt die Werte in ein Dictionary
-    def __init__(self):
-        self.einlesen_csv()
-
     # Funktion gibt die Werte der gewünschten Pflanze zurück
     def gib_Pflanzenwerte(self, Pflanze, Wachstum):
         Pflanzenwerte = self.Pflanzen_dict.get(Pflanze)
@@ -52,9 +52,9 @@ class Pflanzenprofil():
         for schlüssel, wert in Pflanzenwerte.items():   #Schleife über alle Schlüssel-Wert-Paare in Pflanzenwerte
                                                         # .items() gibt alle Einträge aus dem dict
             if Wachstum and schlüssel.startswith("S_"):  # wenn Wachstum ==True und schlüssel mit S startet
-                dict_aktuel[schlüssel] = wert 
+                dict_aktuel[schlüssel.replace("S_", "")] = wert
             elif not Wachstum and schlüssel.startswith("P_"):
-                dict_aktuel[schlüssel] = wert
+                dict_aktuel[schlüssel.replace("P_", "")] = wert
         return dict_aktuel
 
     #string mit Name und dict mit Werten als Übergabe bei neuer Pflanzenart
@@ -65,6 +65,7 @@ class Pflanzenprofil():
             #Datei öffnen und Werte hinzufügen mit append
             with open(dirName + "/Data/Pflanzenprofile.csv", mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
                 writer_object = csv.writer(csvdatei, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
+                # !!! name als eresten wert und im dict ist kein name drin
                 writer_object.writerow(Werteliste)
         elif Name in self.Pflanzen_dict:
              # Bestehende CSV-Datei einlesen
@@ -110,11 +111,11 @@ class Pflanzenprofil():
 #print(Pflanze.neue_Pflanzenart("Salat", neuesPflanzendict))
 #print(Pflanze.neue_Pflanzenart("Salat", verbessertesPflanzendict))
 #profil = Pflanzenprofil()
-# Beispiel 1: Alle Profilwerte (erste 8 Spalten) für Erdbeeren
+#Beispiel 1: Alle Profilwerte (erste 8 Spalten) für Erdbeeren
 #werte_profil = profil.gib_Pflanzenwerte("Erdbeeren", Wachstum=False)
 #print("Profilwerte:", werte_profil)
 
-# Beispiel 2: Nur Wachstumswerte (letzte 7 Spalten + Pflanzenart) für Erdbeeren
+#Beispiel 2: Nur Wachstumswerte (letzte 7 Spalten + Pflanzenart) für Erdbeeren
 #werte_wachstum = profil.gib_Pflanzenwerte("Erdbeeren", Wachstum=True)
 #print("Wachstumswerte:", werte_wachstum)
 
