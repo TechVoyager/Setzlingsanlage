@@ -30,12 +30,8 @@ class Fan(Actors):
         print("Lüfter hört auf")
 
     def set_speed(self, speed_percent):
-    #ab 50% ein sonst aus
-        if speed_percent >= 50:
-                self.on()
-        else:
-                self.off()
-        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
+        #für die Verbesserung mit PWM-Fähigen Aktoren
+        pass
 
 class Lampfan(Actors):
     def on(self):
@@ -64,11 +60,8 @@ class Waterpump(Actors):
         self.pin_obj.value = False
         print("Wasserpumpe hört auf")    
     def set_speed(self, speed_percent):
-        if speed_percent >= 50:
-                self.on()
-        else:
-                self.off()
-        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
+        #für die Verbesserung mit PWM-Fähigen Aktoren
+        pass
         
 
 class Wateratomizer(Actors):
@@ -81,11 +74,8 @@ class Wateratomizer(Actors):
         self.pin_obj.value = False
         print("Wasserzerstäuber hört auf")   
     def set_speed(self, speed_percent):
-        if speed_percent >= 50:
-                self.on()
-        else:
-                self.off()
-        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
+        #für die Verbesserung mit PWM-Fähigen Aktoren
+        pass
 
 class Heatingmat(Actors):
     def on(self):
@@ -97,11 +87,8 @@ class Heatingmat(Actors):
           self.pin_obj.value = False
           print("Heizmatte ist aus")
     def set_speed(self, speed_percent):
-        if speed_percent >= 50:
-            self.on()
-        else:
-            self.off()
-        print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")    
+        #für die Verbesserung mit PWM-Fähigen Aktoren
+        pass  
      
 #speed_percent : Stellgröße vom pid zwischen 0 und 100, gibt an wie stark der Actro angesteuert wird
 
@@ -115,11 +102,8 @@ class Light(Actors):
           self.pin_obj.value = False
           print("Licht ist aus")
     def set_speed(self, speed_percent):
-        if self.speed_percent >= 50:
-            self.on()
-        else:
-            self.off() 
-        print(f"{self.name} - Stellgröße:  {speed_percent:.1f}%")
+        #für die Verbesserung mit PWM-Fähigen Aktoren
+        pass
 
 
     
