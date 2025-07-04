@@ -37,7 +37,24 @@ class Fan(Actors):
                 self.off()
         print(f"{self.name} - Stellgröße: {speed_percent:.1f}%")
 
-class waterpump(Actors):
+class Lampfan(Actors):
+    def on(self):
+        self.state = True
+        self.pin_obj.value = True
+        print("Lampenlüfter läuft")
+
+    def off(self):
+        self.state = False
+        self.pin_obj.value = False
+        print("Lampenlüfter hört auf")
+
+    def lampfan_active(self):
+        if Light.state == True:
+                self.on()
+        else:
+                self.off()
+
+class Waterpump(Actors):
     def on(self):
         self.state = True
         self.pin_obj.value = True
