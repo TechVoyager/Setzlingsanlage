@@ -16,7 +16,9 @@ class Pflanzenprofil():
         # os.path.dirname() gibt den Ordnerpfad bis zur dem Ordner, in dem die Datei drin ist
         # dirName gibt den Ordner an, in dem die Datei liegt, die ausgeführt wird
         # csv-Datei wird wieder geschlossen nach with
-        with open(dirName + "/Data/Pflanzenprofile.csv",mode='r', encoding='utf-8-sig', newline='') as csvdatei:
+        with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='r', encoding='utf-8-sig', newline='') as csvdatei:
+        # DAVOR: with open(dirName + "/Data/Pflanzenprofile.csv",mode='r', encoding='utf-8-sig', newline='') as csvdatei: 
+        # -> besser mit join(): verbindet Pfadbestandteile korrekt und betriebssystemunabhängig
             #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen 
             # Buchstaben sind
             #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden -> genau wie bei der csv-Datei
@@ -59,36 +61,39 @@ class Pflanzenprofil():
 
     #string mit Name und dict mit Werten als Übergabe bei neuer Pflanzenart
     def neue_Pflanzenart(self, Name, Pflanzendict):
-        Werteliste = list(Pflanzendict.values())
+        # Werteliste = list(Pflanzendict.values())
         dirName = os.path.dirname(__file__)
+        neues_profil ={"Pflanzenart": Name, **Pflanzendict}
+        # **Pflanzendict : Pflanzendict hinzugefügt; falls "Pflanzenart" schon drin wäre: überschreiben
+        with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='r', encoding='utf-8-sig', newline='') as csvdatei:
+            reader = csv.DictReader(csvdatei, delimiter=';')
+            Bezeichner = reader.fieldnames  # z.B. ['Tagdauer', ...]
+            alle_zeilen = list(reader) # restliche Zeilen werden als Liste von Dictionaries gespeichert
         if Name not in self.Pflanzen_dict:
             #Datei öffnen und Werte hinzufügen mit append
-            with open(dirName + "/Data/Pflanzenprofile.csv", mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
-                writer_object = csv.writer(csvdatei, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
-                # !!! name als eresten wert und im dict ist kein name drin
-                writer_object.writerow(Werteliste)
-        elif Name in self.Pflanzen_dict:
-             # Bestehende CSV-Datei einlesen
-            with open(dirName + "/Data/Pflanzenprofile.csv", mode='r', encoding='utf-8-sig', newline='') as csvdatei:
-                reader = csv.DictReader(csvdatei, delimiter=';')
-                Bezeichner = reader.fieldnames  # z.B. ['Pflanzenprofil', 'Tagdauer'...]
-                alle_zeilen = list(reader) # restliche Zeilen werden als Liste von Dictionaries gespeichert
-            # gewünschte Zeile ändern
+            with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
+                writer_object = csv.DictWriter(csvdatei, fieldnames=Bezeichner, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
+                writer_object.writerow(neues_profil) # neue Zeile im dict wird hinzugefügt
+            self.einlesen_csv() #csv-Datei wieder einlesen mit neuer Pflanzenart
+            return "Neue Pflanzenart hinzugefügt"
+        else:
+            # wenn Name in self.Pflanzen_dict:
+            # gewünschte Zeile/Pflanzenart ändern bzw. einfach die bestehende Pflanzenart überschreiben
             for i, zeile in enumerate(alle_zeilen): 
-                #i : jeder Index der Liste(welche Zeile)
+                #i : jeder Index der Liste (welche Zeile)
                 #zeile: dict mit den Werten der Zeile
                 #enumerate(): gibt index und Werte
-                if zeile[Bezeichner[0]] == Name: # wenn das Pflanzenprofil dem Name entspricht
-                    alle_zeilen[i] = Pflanzendict # neue Werte zuweisen
+                if zeile["Pflanzenart"] == Name: # wenn die Pflanzenart in dem dict dem Namen der übergebenen Pflanzenart entspricht
+                    alle_zeilen[i] = neues_profil # neue Werte zuweisen; alte werden ersetzt für diese Zeile wenn "Pflanzenart" == Name
                     break
             # Datei neu schreiben
-            with open(dirName + "/Data/Pflanzenprofile.csv", mode='w', encoding='utf-8-sig', newline= '') as csvdatei:
+            with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='w', encoding='utf-8-sig', newline= '') as csvdatei:
                 writer = csv.DictWriter(csvdatei, fieldnames = Bezeichner, delimiter=';')
                 writer.writeheader() # erste Zeile schreiben
                 writer.writerows(alle_zeilen) # restliche Zeilen schreiben
+            self.einlesen_csv()
             return "Pfanzenwerte verändert"
-        self.einlesen_csv() #csv-Datei wieder einlesen mit neuer Pflanzenart
-        return "Neue Pflanzenart hinzugefügt"
+
     
 
 
