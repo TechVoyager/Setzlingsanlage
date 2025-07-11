@@ -8,6 +8,7 @@ import serial.serialutil
 import serial.tools.list_ports
 import platform
 import time
+from helperClasses import SerialDataObject
 
 
 class GUI:
@@ -291,8 +292,10 @@ class GUI:
 
 
 class SerialInterface:
-    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=9600):
+    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
         self.__statusFlags = statusFlags
+        self.selectedPlant = selectedPlant
+        self.progValues = progValues
 
         # Serielle Verbindung konfigurieren
         self.connection = serial.Serial(timeout=.1)
@@ -313,18 +316,20 @@ class SerialInterface:
 
             while self.__statusFlags["running"]:
                 if self.__statusFlags["unsentData"]:
-                    response = self.sendData(selectedPlant)
-                    print(response)
+                    profile = {self.selectedPlant[0]: self.progValues}
+                    response = self.send("setProfile")
+                    if response == "begin":
+                        self.sendBigData(profile)
                     self.__statusFlags["unsentData"] = False
             
             print("disconnecting")
-            self.sendData("disconnect", waitForResponse=False)
+            self.send("disconnect", waitForResponse=False)
             self.disconnect()
         else:
             print("Couldn't find device to connect")
     
 
-    def sendData(self, data, waitForResponse=True):
+    def send(self, data, waitForResponse=True):
         # Schickt Daten zum Raspberry Pico und wartet auf eine Antwort
         # Das Warten auf die Antwort blockiert zwar den aktuellen Thread, ist aber in den meisten Fällen sinnvoll/ nicht schlimm:
         # 1. Bei "Anfragen", also wenn Werte vom Raspi zum PC übertragen werden sollen, wird sowieso nur eine Anfrage gleichzeitig
@@ -332,25 +337,42 @@ class SerialInterface:
         # 2. Bei "Befehlen" bzw. dem Übertragen von Werten vom PC zum Raspi dient die Antwort vom Raspi als Bestätigung, dass die
         #    Verbindung noch am Leben ist.
         # Im Ausnahmefall kann mit "waitForResponse=False" auch auf das Warten verzichtet werden.
-
-        # Es wird vor jede Nachricht der Prefix "pc|" angehängt, um das Zuordnen von Nachrichten und damit das Debugging einfacher
-        # zu machen
-        message = "pc|" + str(data)
-        self.connection.write(bytes(message, "utf-8"))
+        self.connection.write(bytes(str(data), "utf-8"))
 
         if waitForResponse:
-            startTimeStamp = time.time()
-            while self.connection.in_waiting == 0:
-                # Kommt in einer angemessenen Zeit keine Antwort vom Raspi, deutet das auf ein Problem mit der Verbindung hin und
-                # führt zu einem Timeout.
-                if (time.time() - startTimeStamp) >= self.dataRecievingTimeOut:
-                    raise serial.SerialTimeoutException("Timed out waiting for response")
-            
-            if self.connection.in_waiting > 0:
-                recieved = self.connection.readline().decode()
-                processed = recieved.replace("\r","").replace("\n","")
-                print(processed)
-                return processed
+            self.waitTillTimeout(self.dataRecievingTimeOut)
+            data = self.read()
+            return data
+
+
+    def read(self):
+        # Liest Daten aus dem Input-Buffer und entfernt unnötige Formatierungszeichen
+        recieved = self.connection.readline().decode()
+        processed = recieved.replace("\r","").replace("\n","")
+        print(processed)
+        return processed
+    
+    
+    def sendBigData(self, data):
+        # Diese Funktion dient zum senden größerer Datenmengen (>~250 Bytes), da diese nicht auf einmal übertragen werden können.
+        # Mehr Informationen dazu lassen sich in helperClasses.py finden.
+        # Das Senden eines SerialDataObjects dauert deutlich länger als das einer kurzen Nachricht, da es in Etappen passiert.
+        # Diese Funktion sollte daher nur wenn nötig verwendet werden.
+
+        # Daten werden im SerialDataObject "zerstückelt"
+        dataObject = SerialDataObject(data)
+        for chunk in dataObject:
+            chunkResponse = self.send(chunk)
+            # Nach jedem gesendeten Stück (Chunk) wird darauf gewartet, dass das andere Gerät den Chunk verarbeitet hat und eine Antwort schickt.
+            # Ist die Antwort "next", so wird das nächste Stück geschickt. Ist die Nachricht nicht eindeutig identifizierbar, so ist
+            # in der Übertragung etwas schiefgelaufen und die Funktion endet unerfolgreich. Wird der Timeout erreich, wird ein Error
+            # erzeugt. Der Timeout ist in der "send"-Funktion mitinbegriffen
+            if chunkResponse != "next":
+                return False
+        
+        # Sind alle Daten gesendet, so wird dies mit einem "done" signalisiert
+        response = self.send("done")
+        print(response)
     
 
     def findPortAndConnect(self, port):
@@ -359,6 +381,7 @@ class SerialInterface:
         # Zum Überschreiben der automatischen Portsuche kann der port im Vorhinein als Parameter gesetzt werden
 
         availablePorts = serial.tools.list_ports.comports()
+        availablePorts.reverse()
 
         if not port == None:
             # Ist ein Port bereits gegeben wird dieser verwendet
@@ -374,15 +397,15 @@ class SerialInterface:
                 print(self.connection.port)
                 try:
                     self.connection.open()
-                    self.connection.reset_input_buffer()
                     self.testConnection()
                     # Ist bis hierhin kein Fehler aufgetreten, ist die Verbindung erfolgreich aufgebaut
                     return True
                 
                 except Exception as e:
                     print(e)
-                    if "Permission denied" in str(e) and self.osType == "Linux":
-                        messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nHaben sie die nötigen Berechtigungen, um auf diesen Port zuzugreifen? Probieren Sie es mit: \n\nsudo chmod a+rw " + str(port))
+                    # FIX-ME: Aus irgendeinem Grund führt die Error-Messagebox dazu, dass sich alle Threads aufhängen
+                    #if "Permission denied" in str(e) and self.osType == "Linux":
+                       #messagebox.showerror("Fehler beim Verbindungsaufbau", str(e) + "\n\nHaben sie die nötigen Berechtigungen, um auf diesen Port zuzugreifen? Probieren Sie es mit: \n\nsudo chmod a+rw " + str(port))
                     self.disconnect()
                     
             # Sind wir hier angekommen, heißt das, dass keine zufriedenstellende Verbindung aufgebaut werden konnte
@@ -391,13 +414,25 @@ class SerialInterface:
 
 
     def testConnection(self):
-        # Dient zum Testen der Verbindung. Der PC schickt ein "pc|sync" und erwartet darauf ein "sa|sync" vom Raspi. Erhält er das,
+        # Dient zum Testen der Verbindung. Der PC schickt ein "sync" und erwartet darauf ein "sync" vom Raspi. Erhält er das,
         # wird die Verbindung als funktionierend bzw. "synchronisiert" angesehen.
-        response = self.sendData("sync")
-        if not response == "sa|sync":
+        response = self.send("sync")
+        if not response == "sync":
             raise ConnectionError
 
 
     def disconnect(self):
         self.connection.close()
+        # Diese Flagge muss immer gesetzt werden, damit das GUI den Status der Verbindung anzeigen kann.
         self.__statusFlags["connected"] = False
+    
+
+    def waitTillTimeout(self, timeout):
+        # Eine Funktion um auf Daten im Input-Buffer zu warten. Natürlich mit Timeout, um den Programmcode nicht zu blockieren.
+        # Gibt in Form eines bool zurück, ob der Timeout erreicht wurde oder nicht
+        startTime = time.monotonic()
+        while self.connection.in_waiting == 0:
+            currentTime = time.monotonic()
+            if (currentTime - startTime) >= timeout:
+                return False
+        return True
