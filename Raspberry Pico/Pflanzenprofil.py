@@ -1,6 +1,5 @@
 # Modul für Klassen zum Pflanzenprofil-Management
-import csv
-import os
+import circuitpython_csv as csv
 
 class Pflanzenprofil():
     # Funktion liest csv-Datei ein und schreibt die Werte in ein Dictionary
@@ -11,21 +10,19 @@ class Pflanzenprofil():
 
     #Funktion liest csv-Datei ein
     def einlesen_csv(self):
-        dirName = os.path.dirname(__file__)
-        #__file__ gibt den Pfad bis einschlieslich der Datei an
-        # os.path.dirname() gibt den Ordnerpfad bis zur dem Ordner, in dem die Datei drin ist
-        # dirName gibt den Ordner an, in dem die Datei liegt, die ausgeführt wird
         # csv-Datei wird wieder geschlossen nach with
-        with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='r', encoding='utf-8-sig', newline='') as csvdatei:
-        # DAVOR: with open(dirName + "/Data/Pflanzenprofile.csv",mode='r', encoding='utf-8-sig', newline='') as csvdatei: 
-        # -> besser mit join(): verbindet Pfadbestandteile korrekt und betriebssystemunabhängig
-            #encoding='utf-8' -> damit Soonderzeichen gelesen werden können besser utf-8-sig, damit am Anfang keine anderen 
-            # Buchstaben sind
-            #newline='' -> damit die Zeilenumbrüche richtig eingelesen werden -> genau wie bei der csv-Datei
+        with open("Data/Pflanzenprofile.csv", mode='r', encoding='utf-8-sig') as csvdatei:
             csv_reader_object = csv.DictReader(csvdatei, delimiter=';') 
             # csv.DictReader liest csv-Datei als Dict ein
             # delimiter: Trennzeichen in der csv_Datei
             for zeile in csv_reader_object: # jede Zeile ist ein dict
+
+                # Anmerkung von Nicolas: Wenn ein Wert None ist (z.B. in der letzten Zeile) führt das zu sehr eigenartig geformten
+                # Dictionaries (bei denen die Keys nicht vollstädnig von Anführungszeichen umgeben sind).
+                # Solche Zeilen müssen übersprungen werden! Das zu Finden war echt viel Arbeit
+                if zeile[csv_reader_object.fieldnames[0]] is None:
+                    continue
+
                 schluessel = zeile[csv_reader_object.fieldnames[0]] # .fieldnames: Liste mit allen "Überschriften"; [0]:erste Spalte
                                                                     # zeile['Pflanzenprofil'] gibt in der Zeile den Wert zum 
                                                                     # Schlüssel 'Pflanzenprofil' -> Erdbeeren 
@@ -33,12 +30,13 @@ class Pflanzenprofil():
                 for schlüssel, wert in zeile.items():   #Schleife über alle Schlüssel-Wert-Paare in Pflanzenwerte
                                                         # .items() gibt alle Einträge aus dem dict
                     if schlüssel == csv_reader_object.fieldnames[0]:
-                        str_to_int[schlüssel] = wert # bleibt string
+                        str_to_int[str(schlüssel).strip()] = wert # bleibt string
                     else:
                         try: # probiert string zu int zu konvertieren
-                            str_to_int[schlüssel] = int(wert) # Werte als int speichern
+                            str_to_int[str(schlüssel).strip()] = int(wert) # Werte als int speichern
                         except ValueError: # falls Konvertierung nicht möglich ist/ falls eine Fehlermeldung kommen sollte
-                            str_to_int[schlüssel] = wert # falls Konvertierung nicht möglich bleibt es ein string
+                            str_to_int[str(schlüssel).strip()] = wert # falls Konvertierung nicht möglich bleibt es ein string
+                print(str_to_int.keys())
 
                 self.Pflanzen_dict[schluessel] = str_to_int # speichert die ganze neue Zeile, mit den int-Werten,unter dem Namen 
                                                             # schlüssel also bspw. Pflanzenart
@@ -62,16 +60,16 @@ class Pflanzenprofil():
     #string mit Name und dict mit Werten als Übergabe bei neuer Pflanzenart
     def neue_Pflanzenart(self, Name, Pflanzendict):
         # Werteliste = list(Pflanzendict.values())
-        dirName = os.path.dirname(__file__)
-        neues_profil ={"Pflanzenart": Name, **Pflanzendict}
+        neues_profil ={"Pflanzenart": Name} + Pflanzendict
         # **Pflanzendict : Pflanzendict hinzugefügt; falls "Pflanzenart" schon drin wäre: überschreiben
-        with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='r', encoding='utf-8-sig', newline='') as csvdatei:
+        # Anmerkung von Nicolas: der Syntax **Pflanzendict funktioniert unter Circuitpython nicht. Habe die Zeile daher angepasst.
+        with open("Data/Pflanzenprofile.csv", mode='r', encoding='utf-8-sig') as csvdatei:
             reader = csv.DictReader(csvdatei, delimiter=';')
             Bezeichner = reader.fieldnames  # z.B. ['Tagdauer', ...]
             alle_zeilen = list(reader) # restliche Zeilen werden als Liste von Dictionaries gespeichert
         if Name not in self.Pflanzen_dict:
             #Datei öffnen und Werte hinzufügen mit append
-            with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
+            with open("Data/Pflanzenprofile.csv", mode='a', encoding='utf-8-sig', newline= '') as csvdatei:
                 writer_object = csv.DictWriter(csvdatei, fieldnames=Bezeichner, delimiter= ';') # Delimiter ; damit Liste richtig umgesetzt wird in der csv_Datei
                 writer_object.writerow(neues_profil) # neue Zeile im dict wird hinzugefügt
             self.einlesen_csv() #csv-Datei wieder einlesen mit neuer Pflanzenart
@@ -87,7 +85,7 @@ class Pflanzenprofil():
                     alle_zeilen[i] = neues_profil # neue Werte zuweisen; alte werden ersetzt für diese Zeile wenn "Pflanzenart" == Name
                     break
             # Datei neu schreiben
-            with open(os.path.join(dirName, "Data", "Pflanzenprofile.csv"), mode='w', encoding='utf-8-sig', newline= '') as csvdatei:
+            with open("Data/Pflanzenprofile.csv", mode='w', encoding='utf-8-sig', newline= '') as csvdatei:
                 writer = csv.DictWriter(csvdatei, fieldnames = Bezeichner, delimiter=';')
                 writer.writeheader() # erste Zeile schreiben
                 writer.writerows(alle_zeilen) # restliche Zeilen schreiben
