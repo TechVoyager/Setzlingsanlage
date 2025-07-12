@@ -2,6 +2,7 @@
 import time
 import usb_cdc
 from helperClasses import SerialDataObject
+import json
 
 
 class SerialInterface:
@@ -26,8 +27,13 @@ class SerialInterface:
 
     def send(self, data):
         # Wandelt die Daten zu Bytes um und schreibt diese in den Buffer
+        datastring = ""
 
-        processed = bytes(str(data), "utf-8")
+        if type(data) == str:
+            datastring = data
+        else:
+            datastring = "json:" + str(json.dumps(data))
+        processed = bytes(datastring, "utf-8")
         self.connection.write(processed)
     
 
@@ -44,40 +50,12 @@ class SerialInterface:
                 profile = self.readBigData()
                 self.send(profile.keys())
             elif command == "sendProfiles":
-                self.sendBigData()
+                self.send()
             else:
-                self.send(command)
+                self.send("unprocessed:"+command)
     
 
-    def sendBigData(self, data):
-        # Analog zu der sendBigData-Funktion in der Desktopanwendung
-
-        # Diese Funktion dient zum senden größerer Datenmengen (>~250 Bytes), da diese nicht auf einmal übertragen werden können.
-        # Mehr Informationen dazu lassen sich in helperClasses.py finden.
-        # Das senden eines SerialDataObjects dauert deutlich länger als das einer kurzen Nachricht, da es in Etappen passiert.
-        # Diese Funktion sollte daher nur wenn nötig verwendet werden.
-
-        # Daten werden im SerialDataObject "zerstückelt"
-        dataObject = SerialDataObject(data)
-        for chunk in dataObject:
-            self.send(chunk)
-            # Nach jedem gesendeten Stück wird darauf gewartet, dass das andere Gerät diesen verarbeitet hat und eine Antwort schickt.
-            # Ist die Antwort "next", so wird das nächste Stück geschickt. Ist die Nachricht nicht eindeutig identifizierbar, so ist
-            # in der Übertragung etwas schiefgelaufen und die Funktion endet unerfolgreich. Wird der Timeout erreich, wird ein Error
-            # erzeugt. Der Timeout ist extra so kurz wie möglich angesetzt, um den restlichen Programmablauf nicht zu lange zu blockieren.
-            self.waitTillTimeout(0.5)
-            chunkResponse = self.read()
-            if chunkResponse != "next":
-                return False
-        
-        # Sind alle Daten gesendet, so wird dies mit einem "done" signalisiert
-        response = self.send("done")
-        print(response)
-
-
     def readBigData(self):
-        # Analog zu der selben Funktion in der Desktopanwendung
-
         # Diese Funktion dient zum Empfangen größerer Datenmengen in Form eines SerialDataObjects. Dieses besteht aus Chunks,
         # die einzeln übertragen und zum Schluss zusammengesetzt werden.
 

@@ -1,5 +1,4 @@
 # Hauptprogramm  
-#Automatik/manuell
 #pid IN extra datei
 
 
@@ -9,26 +8,26 @@ import board
 
 # Exakte Klassen importieren, nicht automatisch alles
 from Pflanzenprofil import *
-from SerInterface import *
-from Suche import *
+from SerInterface import SerialInterface
 from pid import PID 
 from hardware_setup import sensor_temp, sensor_soil, fan_inward, fan_outward, atomizer, pump, lampfan, sensors, heatingmat, light
 
 
 #Klassenelemente erstellen
 plantprofile = Pflanzenprofil()
+serial = SerialInterface()
 
 #Variablen
 #Variablen zu Pflanzenarten
 plantspecies = "Erdbeeren" # wird geändert durch GUI
 seed = True # seed == True : Samen -- seed == False: Setzling
-            # wird geändert durch GUI
 target_values = plantprofile.gib_Pflanzenwerte(plantspecies, seed)
 time_since_start = time.monotonic() # Zahl in s -> neuer Wert zuweisen wenn neue Pflanzenart ausgewählt wurde
 
 update_time_plantvalues = 5 
-cur_meassurements = {"air_temperature": 25, "air_humidity": 50, "soil_temperature": 25, "soil_moisture": 50 }
-pid_values = {"air_temperature": 0, "air_humiditiy": 0, "soil_temperature": 0, "soil_moisture": 0}
+number_of_days = 0
+cur_meassurements = {"air_temperature": 25, "air_humidity": 50, "soil_temperature": 25, "soil_moisture": 50, "light_state": "aus"}
+pid_values = {"air_temperature": 0, "air_humidity": 0, "soil_temperature": 0, "soil_moisture": 0}
 
 #Regelung muss nich eingestellt werden!
 #Temperatur
@@ -41,7 +40,6 @@ pid_soil_temp.max_output = 100
 pid_soil_moisture = PID(kp=1.0, ki=0.1, kd=0.05, setpoint=target_values["Bodenfeuchte"]) #Sollwert Luftfeuchtigkeit 50 Prozent
 pid_soil_moisture.min_output = 0
 pid_soil_moisture.max_output = 100
-number_of_days = 0
 #Luftfeuchtigkeit
 pid_humidity = PID(kp=1.0, ki=0.1, kd=0.05, setpoint=target_values["Luftfeuchte"]) #Sollwert Bodenfeuchtigkeit 30 Prozent
 pid_humidity.min_output = 0
@@ -60,18 +58,15 @@ while True:
         4. Kommunikation mit GUI
         """
         # nach 5 Tagen neue Werte für die Pflanze ins dict schreiben (von Samen zu Setzling)
-        if plantspecies == "manuell":
-             target_values = manuel_values
-        else:
+        if plantspecies != "manuell":
             if number_of_days >= update_time_plantvalues:
-                target_values = plantprofile.gib_Pflanzenwerte(plantspecies, seed=False)
+                target_values = plantprofile.gib_Pflanzenwerte(plantspecies, False)
             else:
-                target_values = plantprofile.gib_Pflanzenwerte(plantspecies, seed=True)
+                target_values = plantprofile.gib_Pflanzenwerte(plantspecies, True)
         # Sensoren auslesen
         for s in sensors:
                 if s.should_measure(): 
                         value = s.measure()  #Methode Messen aufrufen
-                        print(f"{s.name} bei {s.location}: {value} {s.unit}") #Ausgabe der Werte
                         s.update_timestamp()
                         
                         if value is None:   
@@ -83,7 +78,7 @@ while True:
                             hum = value["humidity"]
                             cur_meassurements["air_temperature"] = temp
                             cur_meassurements["air_humidity"] = hum
-                            pid_values["air_humiditiy"] = pid_humidity.compute(hum)     #PID Wert von 0-100
+                            pid_values["air_humidity"] = pid_humidity.compute(hum)     #PID Wert von 0-100
                             print(f"PID temp output: {pid_values["air_temperature"]}, PID hum output: {pid_values["air_humidity"]}")
 
                         elif s.name == "Soilmoisturemeter":
@@ -110,7 +105,7 @@ while True:
             heatingmat.off()
         
         # TO-DO: Schwellenwerte sind NICHT KORREKT, MÜSSEN ANGEPASST WERDEN
-        if pid_values["air_humiditiy"] > 50:
+        if pid_values["air_humidity"] > 50:
             fan_inward.on()
             fan_outward.on()
         else:
@@ -118,21 +113,41 @@ while True:
             fan_outward.off()
 
         # TO-DO: Schwellenwerte sind NICHT KORREKT, MÜSSEN ANGEPASST WERDEN
-        if pid_values["air_humiditiy"] < 50:
+        if pid_values["air_humidity"] < 50:
             atomizer.on()
         else:
             atomizer.off()
         
         cur_time_light = time.monotonic()
         if ((cur_time_light - time_since_start) - number_of_days*24*60*60) > target_values["Tagdauer"] * 60 * 60:
-             # Wird ausgeführt, wenn der Tag vorbei ist
-             light.off()
+            # Wird ausgeführt, wenn der Tag vorbei ist
+            light.off()
+            cur_meassurements["light_state"] = "aus"
         if (((cur_time_light - time_since_start) - number_of_days*24*60*60) - target_values["Tagdauer"] * 60 * 60) > target_values["Nachtdauer"] * 60 * 60:
-             # Wird ausgeführt, wenn die Nacht vorbei
-             light.on()
-             number_of_days += 1
+            # Wird ausgeführt, wenn die Nacht vorbei
+            light.on()
+            cur_meassurements["light_state"] = "an"
+            number_of_days += 1
 
         # HIER JETZT: Kommunikation mit GUI
+        if serial.connection.in_waiting > 0:
+            command = serial.read()
+
+            if command == "sync":
+                serial.send("sync")
+            elif command == "setProfile":
+                profile = serial.readBigData()
+                if profile["Pflanzenart"] == "manuell":
+                    plantspecies = "manuell"
+                    target_values = profile
+                else:
+                    plantspecies = profile["Pflanzenart"][0]
+            elif command == "getMeasurements":
+                serial.send(cur_meassurements)
+            else:
+                serial.send("unprocessed:"+command)
+
+        time.sleep(1)
 
 
 

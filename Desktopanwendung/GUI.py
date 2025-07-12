@@ -10,6 +10,7 @@ import platform
 import time
 from helperClasses import SerialDataObject
 from Suche import Suche
+import json
 
 
 class GUI:
@@ -21,7 +22,7 @@ class GUI:
     dirName = os.path.dirname(__file__)
 
 
-    def __init__(self, curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval):
+    def __init__(self, curMeasurements, curProfile, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval):
         # Die meisten Parameter werden hier sowohl als "regulärer" Python-Datentyp, als auch als TK-Datentyp gespeichert.
         # Der Grund dafür ist die Kommunikation mit dem Pico: Das GUI wird am Ende in einem Thread laufen, die
         # serielle Schnittstelle in einem anderen. Um Daten zwischen den Threads auszutauschen, werden diese als globale
@@ -32,6 +33,7 @@ class GUI:
 
         # Dictionary für die Ist-Werte
         self.__curMeasurements = curMeasurements
+        self.__curProfile = curProfile
         # Dictionary für die programmierten bzw. Soll-Werte
         self.__progValues = progValues
         self._plantList = availableProfiles
@@ -66,8 +68,8 @@ class GUI:
 
         # Die Ist-Werte werden zu TK-Variablen umformatiert
         self.__TKcurMeasurements = {}
-        for key in self.__curMeasurements:
-            self.__TKcurMeasurements[key] = tk.StringVar(self.root, value = self.__curMeasurements[key])
+        for key in self.__curMeasurements[0]:
+            self.__TKcurMeasurements[key] = tk.StringVar(self.root, value = self.__curMeasurements[0][key])
 
 
         # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
@@ -141,8 +143,8 @@ class GUI:
 
 
     def update(self):
-        for key in self.__curMeasurements:
-            self.__TKcurMeasurements[key].set(self.__curMeasurements[key])
+        for key in self.__curMeasurements[0]:
+            self.__TKcurMeasurements[key].set(self.__curMeasurements[0][key])
 
         if self.__statusFlags["connected"]:
             self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
@@ -153,14 +155,15 @@ class GUI:
         # Im Automatikmodus werden dauerhaft die aktuellen Soll-Werte gesendet
         if not self.__statusFlags["auto"]:
             # Pflanzenart wird auf manuell gesetzt um Zustand eindeutig zu machen
-            self.__progValues["Pflanzenart"] = "manuell"
+            newProfile = {}
+            newProfile["Pflanzenart"] = "manuell"
             # Soll-Werte werden in das "Speicherformat" zurückformatiert
             for key in self.__TKseedProgVals:
-                self.__progValues["S_" + key] = self.__TKseedProgVals[key].get()
-            for key in self.__TKplantProgVals:
-                self.__progValues["P_" + key] = self.__TKplantProgVals[key].get()
+                newProfile[key] = self.__TKseedProgVals[key].get()
             
-            self.__statusFlags["unsentData"] = True
+            if self.__curProfile[0] != newProfile:
+                self.__curProfile[0] = newProfile
+                self.__statusFlags["unsentData"] = True
 
         # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
         self.root.after(self.__updateInterval, self.update)
@@ -303,7 +306,7 @@ class GUI:
 
 
 class SerialInterface:
-    def __init__(self, curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
+    def __init__(self, curMeasurements, curProfile, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
         self.__statusFlags = statusFlags
         self.selectedPlant = selectedPlant
         self.progValues = progValues
@@ -327,11 +330,14 @@ class SerialInterface:
 
             while self.__statusFlags["running"]:
                 if self.__statusFlags["unsentData"]:
-                    profile = {self.selectedPlant[0]: self.progValues}
                     response = self.send("setProfile")
                     if response == "begin":
-                        self.sendBigData(profile)
+                        print(curProfile[0])
+                        self.sendBigData(curProfile[0])
                     self.__statusFlags["unsentData"] = False
+                
+                curMeasurements[0] = self.send("getMeasurements")
+                time.sleep(1)
             
             print("disconnecting")
             self.send("disconnect", waitForResponse=False)
@@ -360,6 +366,8 @@ class SerialInterface:
         # Liest Daten aus dem Input-Buffer und entfernt unnötige Formatierungszeichen
         recieved = self.connection.readline().decode()
         processed = recieved.replace("\r","").replace("\n","")
+        if processed.startswith("json:"):
+            processed = json.loads(processed.replace("json:", ""))
         print(processed)
         return processed
     
