@@ -5,7 +5,7 @@ from GUI import GUI, SerialInterface
 import threading
 
 # curVals sind die aktuellen Messwerte, progVals die programmierten Soll-Werte
-curVals = {"airTemp": 0, "soilTemp":0, "humidity": 0, "moisture": 0, "lightState": "aus"}
+curVals = {"air_temperature": 25, "air_humidity": 50, "soil_temperature": 25, "soil_moisture": 50, "light_state": "aus"}
 progVals = {"P_Tagdauer": 2, "P_Nachtdauer": 3, "P_Bodentemperatur_tag": 6, 
             "P_Bodentemperatur_nacht": 5, "P_Lufttemperatur": 6, "P_Luftfeuchte": 7, "P_Bodenfeuchte": 8,
             "S_Tagdauer": 2, "S_Nachtdauer": 3, "S_Bodentemperatur_tag": 4, 
@@ -19,12 +19,12 @@ selectedPlant = ["Tomate"]
 statusFlags = {"auto": True, "unsentData": False, "connected": False, "running": True}
 
 
-def run_gui(curValues, progValues, availableProfiles, selectedPlant, statusFlags):
-    gui = GUI(curValues, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval=1000)
+def run_gui(curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags):
+    gui = GUI(curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval=1000)
 
 
-def run_serial(curValues, progValues, availableProfiles, selectedPlant, statusFlags):   
-    connection = SerialInterface(curValues, progValues, availableProfiles, selectedPlant, statusFlags)
+def run_serial(curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags):   
+    connection = SerialInterface(curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags)
 
 
 t1 = threading.Thread(target=run_gui, args=[curVals, progVals, availableProfiles, selectedPlant, statusFlags])

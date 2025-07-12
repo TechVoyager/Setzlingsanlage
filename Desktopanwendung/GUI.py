@@ -9,6 +9,7 @@ import serial.tools.list_ports
 import platform
 import time
 from helperClasses import SerialDataObject
+from Suche import Suche
 
 
 class GUI:
@@ -20,7 +21,7 @@ class GUI:
     dirName = os.path.dirname(__file__)
 
 
-    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval):
+    def __init__(self, curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval):
         # Die meisten Parameter werden hier sowohl als "regulärer" Python-Datentyp, als auch als TK-Datentyp gespeichert.
         # Der Grund dafür ist die Kommunikation mit dem Pico: Das GUI wird am Ende in einem Thread laufen, die
         # serielle Schnittstelle in einem anderen. Um Daten zwischen den Threads auszutauschen, werden diese als globale
@@ -29,46 +30,46 @@ class GUI:
         # Da nur Listen(-ähnliche) Datentypen als Referenz übergeben werden, werden alle andere Datentypen in einer
         # list oder einem dict verpackt.
 
-        self.__updateInterval = updateInterval
         # Dictionary für die Ist-Werte
-        self.__curValues = curValues
+        self.__curMeasurements = curMeasurements
         # Dictionary für die programmierten bzw. Soll-Werte
         self.__progValues = progValues
         self._plantList = availableProfiles
         self._selectedPlant = selectedPlant
-
         # dict welches die Zustände des aktuellen Programms enthält: 
         # "auto" für den Automatikmodus, "unsentData" als Signal, dass Daten zum Raspi übertragen werden sollen
         # "connected" für den Zustand der seriellen Schnittstelle, "running" für den Zustand des GUIs
         self.__statusFlags = statusFlags
-
+        self.__updateInterval = updateInterval
+        
         
         # Initialisierung des des Fensters
         self.root = tk.Tk()
         self.root.title("SetzlingsUI")
 
-        # Variablen müssen außerdem auch als tk-Variablen definiert werden, damit sie im Widget angezeigt werden können
-        self.__TKcurAirTemp = tk.IntVar(self.root, value=curValues["airTemp"])
-        self.__TKcurSoilTemp = tk.IntVar(self.root, value=curValues["soilTemp"])
-        self.__TKcurHumidity = tk.IntVar(self.root, value=curValues["humidity"])
-        self.__TKcurMoisture = tk.IntVar(self.root, value=curValues["moisture"])
-        self.__TKcurLightState = tk.StringVar(self.root, value=curValues["lightState"])
+
         self.__TKauto = tk.BooleanVar(self.root, value=self.__statusFlags["auto"])
 
         # Enthält die Eingabe in das Such-Feld bei der Auswahl des Pflanzenprofils
         self.__TKplantEntryVar = tk.StringVar(self.root, value=selectedPlant[0])
-
-        self.__TKseedProgVals = {}
-        self.__TKplantProgVals = {}
+        self.__searchFunction = Suche()
+        self.__TKplantEntryVar.trace_add("write", self.updatePlantList)
 
         # Die Soll-Werte werden zu TK-Variablen umformatiert
+        self.__TKseedProgVals = {}
+        self.__TKplantProgVals = {}
         for key in self.__progValues:
             if key.startswith("S_"):
                 self.__TKseedProgVals[key.strip("S_")] = tk.IntVar(self.root, value=self.__progValues[key])
             if key.startswith("P_"):
                 self.__TKplantProgVals[key.strip("P_")] = tk.IntVar(self.root, value=self.__progValues[key])
 
-        # Diese Art von Styling kann erst nach Initialisierung vorgenommen werden
+        # Die Ist-Werte werden zu TK-Variablen umformatiert
+        self.__TKcurMeasurements = {}
+        for key in self.__curMeasurements:
+            self.__TKcurMeasurements[key] = tk.StringVar(self.root, value = self.__curMeasurements[key])
+
+
         # Wir verwenden ein vorgefertigtes Tkinter-Theme von rdbende, zu finden unter https://github.com/rdbende/Forest-ttk-theme
         self.root.tk.call('source', dirName+'/theme/forest-dark.tcl')
         ttk.Style().theme_use('forest-dark')
@@ -102,15 +103,15 @@ class GUI:
         # "Monitor"-Bereich, zum Anzeigen der aktuellen Messwerte
         monitorFrame = ttk.Frame(mainframe, padding=10)
         monitorFrame.grid(column=0, row=2)
-        self.dataField(monitorFrame, "Lufttemperatur:", self.__TKcurAirTemp, "°C", "./imgs/dark_temp.png", 0)
+        self.dataField(monitorFrame, "Lufttemperatur:", self.__TKcurMeasurements["air_temperature"], "°C", "./imgs/dark_temp.png", 0)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=1)
-        self.dataField(monitorFrame, "Luftfeuchtigkeit:", self.__TKcurHumidity, "%", "./imgs/dark_luft.png", 2)
+        self.dataField(monitorFrame, "Luftfeuchtigkeit:", self.__TKcurMeasurements["air_humidity"], "%", "./imgs/dark_luft.png", 2)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=3)
-        self.dataField(monitorFrame, "Bodentemperatur:", self.__TKcurSoilTemp, "°C", "./imgs/dark_temp.png", 4)
+        self.dataField(monitorFrame, "Bodentemperatur:", self.__TKcurMeasurements["soil_temperature"], "°C", "./imgs/dark_temp.png", 4)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=5)
-        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self.__TKcurMoisture, "%", "./imgs/dark_tropfen.png", 6)
+        self.dataField(monitorFrame, "Bodenfeuchtigkeit:", self.__TKcurMeasurements["soil_moisture"], "%", "./imgs/dark_tropfen.png", 6)
         ttk.Frame(monitorFrame, height=10).grid(column=0, row=7)
-        self.dataField(monitorFrame, "Beleuchtung:", self.__TKcurLightState, "", "./imgs/dark_sonne.png", 8)
+        self.dataField(monitorFrame, "Beleuchtung:", self.__TKcurMeasurements["light_state"], "", "./imgs/dark_sonne.png", 8)
 
         # "Programm"-Bereich, zum Anzeigen der Soll-Werte
         programFrame = ttk.Frame(mainframe, padding=10)
@@ -140,10 +141,8 @@ class GUI:
 
 
     def update(self):
-        self.__TKcurAirTemp.set(self.__curValues["airTemp"])
-        self.__TKcurHumidity.set(self.__curValues["humidity"])
-        self.__TKcurMoisture.set(self.__curValues["moisture"])
-        self.__TKcurLightState.set(self.__curValues["lightState"])
+        for key in self.__curMeasurements:
+            self.__TKcurMeasurements[key].set(self.__curMeasurements[key])
 
         if self.__statusFlags["connected"]:
             self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
@@ -231,6 +230,8 @@ class GUI:
     def toggleEntryFields(self):
         self.__statusFlags["auto"] = self.__TKauto.get()
 
+        self.__TKplantEntryVar.set("")
+
         for field in self.__entryFields:
             if self.__statusFlags["auto"]:
                 field.config(state="disabled")
@@ -265,13 +266,23 @@ class GUI:
         
         # Container wird für weiteres Styling zurückgegeben
         return container
+        
+
+    def updatePlantList(self, *args):
+        entry = self.__TKplantEntryVar.get()
+        newPlantList = self.__searchFunction.Suche_Pflanzenart(suchstring=entry, suchliste=self._plantList)
+        for plantName in self.__plantSelectionBox.get_children():
+            self.__plantSelectionBox.delete(plantName)
+        for plantName in newPlantList:
+            self.__plantSelectionBox.insert('', index="end", values=plantName)
     
 
     def plantSelected(self, event):
-        selected_row = self.__plantSelectionBox.selection()[0]
-        # Es müssen immer beide Variablen aktualisiert werden!
-        self._selectedPlant[0] = self.__plantSelectionBox.item(selected_row, "values")[0]
-        self.__TKplantEntryVar.set(self._selectedPlant[0])
+        if len(self.__plantSelectionBox.selection()) > 0:
+            selected_row = self.__plantSelectionBox.selection()[0]
+            # Es müssen immer beide Variablen aktualisiert werden!
+            self._selectedPlant[0] = self.__plantSelectionBox.item(selected_row, "values")[0]
+            self.__TKplantEntryVar.set(self._selectedPlant[0])
 
     
     def profileToPico(self):
@@ -292,7 +303,7 @@ class GUI:
 
 
 class SerialInterface:
-    def __init__(self, curValues, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
+    def __init__(self, curMeasurements, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
         self.__statusFlags = statusFlags
         self.selectedPlant = selectedPlant
         self.progValues = progValues
@@ -410,7 +421,6 @@ class SerialInterface:
                     
             # Sind wir hier angekommen, heißt das, dass keine zufriedenstellende Verbindung aufgebaut werden konnte
             return False
-
 
 
     def testConnection(self):
