@@ -60,10 +60,12 @@ class Pflanzenprofil():
     #string mit Name und dict mit Werten als Übergabe bei neuer Pflanzenart
     def neue_Pflanzenart(self, Name, Pflanzendict):
         # Werteliste = list(Pflanzendict.values())
-        neues_profil ={"Pflanzenart": Name} + Pflanzendict
+        neues_profil ={"Pflanzenart": Name}
+        for key in Pflanzendict:
+            neues_profil[key] = Pflanzendict[key]
         # **Pflanzendict : Pflanzendict hinzugefügt; falls "Pflanzenart" schon drin wäre: überschreiben
         # Anmerkung von Nicolas: der Syntax **Pflanzendict funktioniert unter Circuitpython nicht. Habe die Zeile daher angepasst.
-        with open("Data/Pflanzenprofile.csv", mode='r', encoding='utf-8-sig') as csvdatei:
+        with open("Data/Pflanzenprofile.csv", mode='r', encoding='utf-8-sig', newline= '') as csvdatei:
             reader = csv.DictReader(csvdatei, delimiter=';')
             Bezeichner = reader.fieldnames  # z.B. ['Tagdauer', ...]
             alle_zeilen = list(reader) # restliche Zeilen werden als Liste von Dictionaries gespeichert
