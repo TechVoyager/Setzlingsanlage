@@ -97,24 +97,6 @@ class Pflanzenprofil():
     
 
 
-#neuesPflanzendict = {"Pflanzenart" : "Salat", "P_Tagdauer": 2, "P_Nachtdauer": 3,
-#                   "P_Bodentemperatur_tag": 4, "P_Bodentemperatur_nacht": 5, "P_Lufttemperatur": 6, 
-#                   "P_Luftfeuchte": 7, "P_Bodenfeuchte": 8}
-#verbessertesPflanzendict = {"Pflanzenart" : "Salat", "Tagdauer": 7, "Nachtdauer": 6,
-#                   "Bodentemperatur_tag": 5, "Bodentemperatur_nacht": 4, "Lufttemperatur": 3, 
-#                   "Luftfeuchte": 2, "Bodenfeuchte": 1}
-#print(neuesPflanzendict)
-#Pflanze = Pflanzenprofil()
-#print(Pflanze.Pflanzen_dict)
-#print(Pflanze.gib_Pflanzenwerte("Erdbeeren"))
-# Ausgabe: {'Pflanzenart': 'Erdbeeren', 'Tagdauer': '10', 'Nachtdauer': '8', 
-#           'Bodentemperatur Tag': '20', 'Bodentemperatur Nacht': '10', 'Lufttemperatur': '20', 
-#           'Luftfeuchte': '70', 'Bodenfeuchte': '0'}
-#print(Pflanze.gib_Pflanzenwerte("Salat"))
-#print(Pflanze.neue_Pflanzenart('Karotte',2,3,4,5,6,7,8, 9))
-#print(Pflanze.gib_Pflanzenwerte("Karotte"))
-#print(Pflanze.neue_Pflanzenart("Salat", neuesPflanzendict))
-#print(Pflanze.neue_Pflanzenart("Salat", verbessertesPflanzendict))
 #profil = Pflanzenprofil()
 #Beispiel 1: Alle Profilwerte (erste 8 Spalten) für Erdbeeren
 #werte_profil = profil.gib_Pflanzenwerte("Erdbeeren", Wachstum=False)
