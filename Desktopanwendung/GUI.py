@@ -4,7 +4,6 @@ from tkinter import messagebox
 import os
 import math
 import serial
-import serial.serialutil
 import serial.tools.list_ports
 import platform
 import time
@@ -22,29 +21,25 @@ class GUI:
     dirName = os.path.dirname(__file__)
 
 
-    def __init__(self, curMeasurements, curProfile, progValues, availableProfiles, selectedPlant, statusFlags, updateInterval):
-        # Die meisten Parameter werden hier sowohl als "regulärer" Python-Datentyp, als auch als TK-Datentyp gespeichert.
-        # Der Grund dafür ist die Kommunikation mit dem Pico: Das GUI wird am Ende in einem Thread laufen, die
-        # serielle Schnittstelle in einem anderen. Um Daten zwischen den Threads auszutauschen, werden diese als globale
-        # Variablen im Heap gespeichert. Alle Daten, die zwischen den Threads ausgetauscht werden, werden als Referenz
-        # an diese Klasse übergeben, damit Änderungen direkt im Heap passieren.
-        # Da nur Listen(-ähnliche) Datentypen als Referenz übergeben werden, werden alle andere Datentypen in einer
-        # list oder einem dict verpackt.
-
+    def __init__(self, curMeasurements, curProfile, availableProfiles, selectedPlant, statusFlags, updateInterval):
         # Dictionary für die Ist-Werte
         self.__curMeasurements = curMeasurements
         self.__curProfile = curProfile
         # Dictionary für die programmierten bzw. Soll-Werte
-        self.__progValues = progValues
-        self._plantList = availableProfiles
-        self._selectedPlant = selectedPlant
+        self._availableProfiles = availableProfiles
+        self.__selectedPlant = selectedPlant
         # dict welches die Zustände des aktuellen Programms enthält: 
         # "auto" für den Automatikmodus, "unsentData" als Signal, dass Daten zum Raspi übertragen werden sollen
         # "connected" für den Zustand der seriellen Schnittstelle, "running" für den Zustand des GUIs
         self.__statusFlags = statusFlags
         self.__updateInterval = updateInterval
         
+        self._plantNameList = list(self._availableProfiles[0].keys())
         
+        self.__previousConnectionStatus = False
+        self.__enableSearch = True
+
+
         # Initialisierung des des Fensters
         self.root = tk.Tk()
         self.root.title("SetzlingsUI")
@@ -53,18 +48,18 @@ class GUI:
         self.__TKauto = tk.BooleanVar(self.root, value=self.__statusFlags["auto"])
 
         # Enthält die Eingabe in das Such-Feld bei der Auswahl des Pflanzenprofils
-        self.__TKplantEntryVar = tk.StringVar(self.root, value=selectedPlant[0])
+        self.__TKplantEntryVar = tk.StringVar(self.root, value=self.__selectedPlant[0])
         self.__searchFunction = Suche()
         self.__TKplantEntryVar.trace_add("write", self.updatePlantList)
 
         # Die Soll-Werte werden zu TK-Variablen umformatiert
         self.__TKseedProgVals = {}
         self.__TKplantProgVals = {}
-        for key in self.__progValues:
+        for key in self.__curProfile[0]:
             if key.startswith("S_"):
-                self.__TKseedProgVals[key.strip("S_")] = tk.IntVar(self.root, value=self.__progValues[key])
+                self.__TKseedProgVals[key] = tk.IntVar(self.root, value=self.__curProfile[0][key])
             if key.startswith("P_"):
-                self.__TKplantProgVals[key.strip("P_")] = tk.IntVar(self.root, value=self.__progValues[key])
+                self.__TKplantProgVals[key] = tk.IntVar(self.root, value=self.__curProfile[0][key])
 
         # Die Ist-Werte werden zu TK-Variablen umformatiert
         self.__TKcurMeasurements = {}
@@ -133,7 +128,7 @@ class GUI:
         notebook.add(saplingTilingFrame, text="Setzlingstadium")
 
         # Die Eingabefelder für die Soll-Werte werden in einer Liste gespeichert, damit sie einfach gesperrt bzw. entsperrt werden können
-        self.__entryFields = seedEntryFields + saplingEntryFields
+        self.__entryFields = {**seedEntryFields, **saplingEntryFields}
         
 
         self.update()
@@ -146,23 +141,34 @@ class GUI:
         for key in self.__curMeasurements[0]:
             self.__TKcurMeasurements[key].set(self.__curMeasurements[0][key])
 
-        if self.__statusFlags["connected"]:
-            self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
-        else:
-            self.__connectionStatusField.config(text="Getrennt", style="Red.TLabel")
+        if self.__statusFlags["connected"] != self.__previousConnectionStatus:
+            if self.__statusFlags["connected"]:
+                self.__connectionStatusField.config(text="Verbunden", style="Green.TLabel")
+                self._plantNameList = list(self._availableProfiles[0].keys())
+                self.__TKplantEntryVar.set("")
+                self.__enableSearch = False
+                self.__TKplantEntryVar.set(self.__selectedPlant[0])
+                self.__enableSearch = True
+                self.updateCurProfile()
+            else:
+                self.__connectionStatusField.config(text="Getrennt", style="Red.TLabel")
+            self.__previousConnectionStatus = self.__statusFlags["connected"]
 
 
-        # Im Automatikmodus werden dauerhaft die aktuellen Soll-Werte gesendet
+        # Im Manuellen Modus werden die Soll-Werte dauerhaft aktualisiert, damit Änderungen
+        # vom Nutzenden automatisch auf die Setzlingsanlage übetragen werden
         if not self.__statusFlags["auto"]:
-            # Pflanzenart wird auf manuell gesetzt um Zustand eindeutig zu machen
             newProfile = {}
+            # Pflanzenart wird auf manuell gesetzt um Zustand eindeutig zu machen
             newProfile["Pflanzenart"] = "manuell"
             # Soll-Werte werden in das "Speicherformat" zurückformatiert
             for key in self.__TKseedProgVals:
+                # Wir übernehmen nur die Soll-Werte für die Samen-Phase, das hat allerdings keine weitere Bedeutung.
+                # Das Eingabe-Raster der Samen-Phase wird für die Eingabe der manuellen Werte wiederverwendet
                 newProfile[key] = self.__TKseedProgVals[key].get()
             
             if self.__curProfile[0] != newProfile:
-                self.__curProfile[0] = newProfile
+                self.__curProfile = newProfile
                 self.__statusFlags["unsentData"] = True
 
         # Die update-Funktion scheduled sich selbst, um nach bestimmter Zeit erneut ausgeführt zu werden
@@ -218,14 +224,14 @@ class GUI:
         tilingFrame = ttk.Frame(parentFrame)
         # die "entry"-widgets, welche in dataInput genutzt werden, werden in einer Liste gespeichert und returned,
         # um das (Ent-)Sperren der Eingabe zu erleichtern, wenn zwischen dem Automatik bzw. Manuellen Modus gewechselt wird
-        dataFields = []
+        dataFields = {}
         for row in range(rows):
             for column in range(columns):
                 index = columns * row + column
                 if index <= len(descriptors) - 1:
-                    dataFrame, entryField = self.dataInput(tilingFrame, descriptors[index], variables[index])
+                    dataFrame, entryField = self.dataInput(tilingFrame, descriptors[index].replace("P_", "").replace("S_", ""), variables[index])
                     dataFrame.grid(column=column, row=row, sticky="nsew")
-                    dataFields.append(entryField)
+                    dataFields[descriptors[index]] = entryField
         
         return tilingFrame, dataFields
 
@@ -235,7 +241,7 @@ class GUI:
 
         self.__TKplantEntryVar.set("")
 
-        for field in self.__entryFields:
+        for field in self.__entryFields.values():
             if self.__statusFlags["auto"]:
                 field.config(state="disabled")
             else:
@@ -258,7 +264,7 @@ class GUI:
         self.__plantSelectionBox = ttk.Treeview(container, columns=["Name"], show="", height=5)
         self.__plantSelectionBox.grid(column=0, row=2, sticky="ew")
         self.__plantSelectionBox.column("0", minwidth=0, width=100)
-        for plantName in self._plantList:
+        for plantName in self._plantNameList:
             self.__plantSelectionBox.insert('', index="end", values=plantName)
         
         self.__plantSelectionBox.bind("<<TreeviewSelect>>", self.plantSelected)
@@ -272,20 +278,33 @@ class GUI:
         
 
     def updatePlantList(self, *args):
-        entry = self.__TKplantEntryVar.get()
-        newPlantList = self.__searchFunction.Suche_Pflanzenart(suchstring=entry, suchliste=self._plantList)
-        for plantName in self.__plantSelectionBox.get_children():
-            self.__plantSelectionBox.delete(plantName)
-        for plantName in newPlantList:
-            self.__plantSelectionBox.insert('', index="end", values=plantName)
+        if self.__enableSearch:
+            entry = self.__TKplantEntryVar.get()
+            newPlantList = self.__searchFunction.Suche_Pflanzenart(suchstring=entry, suchliste=self._plantNameList)
+            for plantName in self.__plantSelectionBox.get_children():
+                self.__plantSelectionBox.delete(plantName)
+            for plantName in newPlantList:
+                self.__plantSelectionBox.insert('', index="end", values=plantName)
+    
+
+    def updateCurProfile(self):
+        self.__curProfile[0] = self._availableProfiles[0][self.__selectedPlant[0]]
+        for field in self.__TKseedProgVals:
+            self.__TKseedProgVals[field].set(self.__curProfile[0][field])
+        for field in self.__TKplantProgVals:
+            self.__TKplantProgVals[field].set(self.__curProfile[0][field])
     
 
     def plantSelected(self, event):
         if len(self.__plantSelectionBox.selection()) > 0:
             selected_row = self.__plantSelectionBox.selection()[0]
             # Es müssen immer beide Variablen aktualisiert werden!
-            self._selectedPlant[0] = self.__plantSelectionBox.item(selected_row, "values")[0]
-            self.__TKplantEntryVar.set(self._selectedPlant[0])
+            self.__selectedPlant[0] = self.__plantSelectionBox.item(selected_row, "values")[0]
+            self.__TKplantEntryVar.set("")
+            self.__enableSearch = False
+            self.__TKplantEntryVar.set(self.__selectedPlant[0])
+            self.__enableSearch = True
+            self.updateCurProfile()
 
     
     def profileToPico(self):
@@ -295,7 +314,7 @@ class GUI:
             messagebox.showerror("Verbindung getrennt", "Es besteht keine Verbindung zur Setzlingsanlage. Überprüfen sie das Kabel und die Verbindungseinstellungen.")
             return
         
-        if plantToSend not in self._plantList:
+        if plantToSend not in self._plantNameList:
             messagebox.showerror("Kein Pflanzenprofil ausgewählt", "Bitte schreiben Sie den vollständigen Namen eines gespeicherten Pflanzenprofils in das Eingabefeld oder wählen Sie ein Profil aus der Liste aus.")
             return
 
@@ -306,10 +325,8 @@ class GUI:
 
 
 class SerialInterface:
-    def __init__(self, curMeasurements, curProfile, progValues, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
+    def __init__(self, curMeasurements, curProfile, availableProfiles, selectedPlant, statusFlags, port=None, baudrate=115200):
         self.__statusFlags = statusFlags
-        self.selectedPlant = selectedPlant
-        self.progValues = progValues
 
         # Serielle Verbindung konfigurieren
         self.connection = serial.Serial(timeout=.1)
@@ -323,16 +340,19 @@ class SerialInterface:
 
         # Verbindungsaufbau
         result = self.findPortAndConnect(port)
-        self.__statusFlags["connected"] = result
 
-        if result:
+        if result:  
+            curConfiguration = self.send("getConfig")
+            availableProfiles[0] = curConfiguration["profiles"]
+            selectedPlant[0] = curConfiguration["selectedPlant"]
+            print(selectedPlant)
+            self.__statusFlags["connected"] = True
+            
             # Solange das GUI läuft, werden Daten gesendet und empfangen
-
             while self.__statusFlags["running"]:
                 if self.__statusFlags["unsentData"]:
                     response = self.send("setProfile")
                     if response == "begin":
-                        print(curProfile[0])
                         self.sendBigData(curProfile[0])
                     self.__statusFlags["unsentData"] = False
                 
@@ -391,7 +411,6 @@ class SerialInterface:
         
         # Sind alle Daten gesendet, so wird dies mit einem "done" signalisiert
         response = self.send("done")
-        print(response)
     
 
     def findPortAndConnect(self, port):
