@@ -49,27 +49,30 @@ class Soilmoisturemeter(Sensor): #Bodenfeuchtigkeitsmesser
                percent = (raw / 65535) * 100  #wandelt die Zahl 0-65535 in Prozent um 
                return round(percent, 1) #wird noch auf eins gerundet
         
-class SoilTemperaturesensor(Sensor): #Bodentemperatur, rknown ist der referenzwiderstand(10kOhm), beta Konstante des Nt´TC, t0 = Referenztemperatur in Grad
-        def __init__(self, location, pin, interval_s, adc_max=65535, r_known = 10000, beta=3950, t0=25):
+#NTC = temperaturabhängig = hohe Temperatur hoher Widerstand
+class SoilTemperaturesensor(Sensor): #Bodentemperatur: rknown = Referenzwiderstand(100kOhm), beta = Materialkonstante des NTC, t0 = Referenztemperatur in Grad
+        def __init__(self, location, pin, interval_s, adc_max=65535, r_known = 92000, beta=6965, t0=25):
                 super().__init__("SoilTemperaturesensor", location, "°C", interval_s)  #Die Einheit(unit) ist in Prozent angegeben #super macht, dass man nicht erneut die Elternklasse initialisieren muss also self.name z.B., da wir ja die Einheit festlegen)
-                self.adc = analogio.AnalogIn(pin)
+                self.adc = analogio.AnalogIn(pin) #digitaler Wert zwischen 0 und 65535
                 self.adc_max = adc_max
                 self.r_known = r_known
                 self.beta = beta
                 self.t0_kelvin = t0 + 273.15
-
+        #aktueller Widerstand des NTC Sensors
         def adc_to_resistance(self, adc_value):
                 if adc_value == 0:
-                        return float("inf")
-                #unendlicher Widerstand
-                return self.r_known * (self.adc_max / adc_value -1)
-        
-        def resistance_to_temp(self, resistance == 0 or resistance == float("inf")):
-                return None #keinen gültigen Wert
-                ln = math.log(resistance / self.r_known)
-                inv_t = (1/self.t0_kelvin) + (1 / self.beta) *len
+                        return float("inf") #unendlicher Widerstand
+                return self.r_known * (self.adc_max / adc_value -1) #Spannungsteiler ber. des Widerstandes Rntc
+
+
+        #berechnet die Temperatur in grad 
+        def resistance_to_temp(self, resistance):
+                if resistance == 0 or resistance == float("inf"): #wenn Wackelkontakt
+                        return None #keinen gültigen Wert
+                ln = math.log(resistance / self.r_known)   #Teil der Beta Formel
+                inv_t = (1/self.t0_kelvin) + (1 / self.beta) *ln #inverse temperature = Kehrwert der Temperatur in Kelvin
                 t_kelvin = 1 / inv_t
-                returm t_kelvin - 273.15
+                return t_kelvin - 273.15
 
 
         def measure(self):

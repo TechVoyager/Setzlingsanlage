@@ -10,7 +10,7 @@ import board
 from Pflanzenprofil import *
 from SerInterface import SerialInterface
 from pid import PID 
-from hardware_setup import sensor_temp, sensor_soil, fan_inward, fan_outward, atomizer, pump, lampfan, sensors, heatingmat, light
+from hardware_setup import sensor_temp, sensor_soil, sensor_soiltemp, fan_inward, fan_outward, atomizer, pump, lampfan, sensors, heatingmat, light
 
 
 #Klassenelemente erstellen
@@ -90,7 +90,6 @@ while True:
                             cur_meassurements["soil_temperature"] = value
                             pid_values["soil_temperature"] = pid_soil_temp.compute(value)
                             print(f"PID Soil Temperature Output: {pid_values["soil_temperature"]}")
-
 
         # TO-DO: Schwellenwerte sind NICHT KORREKT, MÜSSEN ANGEPASST WERDEN
         if pid_values["soil_moisture"] > 50:
