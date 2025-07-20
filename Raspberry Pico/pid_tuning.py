@@ -2,7 +2,7 @@ import time
 from hardware_setup import sensor_temp, sensor_soil, fan_inward, fan_outward, atomizer, pumpe
 from pid import PID
 
-#Konstanten werden nicht verändert! (Deshalb Großbuchstaben)
+#Konstanten werden nicht verändert! (Deshalb Großbuchstaben) START = Startpunkt, STEP = Schrittweite, MAX = Maximalwert z.B. kp in 0,1 schritten zwischen 0.0 und 2.0 
 KP_START = 0.0
 KI_START = 0.0
 KD_START = 0.0
@@ -21,7 +21,7 @@ TEST_DURATION = 10
 #Zeitintervall zw. 2 Messungen (z.B. 2 Sekunden für DHt11)
 MEASURE_INTERVALL_S = 2.0
 
-#ab wann wird ein Aktor aktiviert in Prozent(0-100)
+#ab wann wird ein Aktor aktiviert in Prozent(0-100), in unserem Fall über 50 %
 OUTPUT_THRESHOLD = 50
 
 #keine Steuerung bei minimalem Fehler (z.B. 1 Grad), in welchem Bereich soll nichts passieren 
@@ -30,7 +30,8 @@ DEADZONE = 1.0
 #Sollwert
 setpoint = 25
 
-#Kommazahlen zürückgeben für die Schleife
+#Kommazahlen zürückgeben für die Schleife, drange wegen decimal und range
+#Leider funktioniert die for Schleife nur bei int Zahlen, deshalb eine eigene Funktion
 def drange(start, stop, step):
     while start <= stop:
         yield round(start, 3)
@@ -50,7 +51,7 @@ def evaluate_pid(pid, sensor, actuator, setpoint):
 
             sensor_value = sensor.measure()  #sensor einlesen
             error = setpoint - sensor_value
-            abs_error = abs(error)  #abs gibt den wert (error ohne vorzeichen also +/- zurück immmer +)
+            abs_error = abs(error)  #abs = absoluter Fehler, gibt den wert (error ohne vorzeichen also +/- zurück immmer +)
             error_sum += abs_error            #Summierter Fehler über Zeit (halt von der Sensorzeit)
 
             #Deadzone ist ein Bereich in dem nichts passieren soll. Sensor hat Toleranzen usw.

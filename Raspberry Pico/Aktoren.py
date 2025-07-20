@@ -104,6 +104,3 @@ class Light(Actors):
     def set_speed(self, speed_percent):
         #für die Verbesserung mit PWM-Fähigen Aktoren
         pass
-
-
-    

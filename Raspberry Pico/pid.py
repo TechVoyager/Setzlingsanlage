@@ -58,7 +58,7 @@ class PID:
         self.last_error = error 
         self.lasttime = current_time
 
-        return output #regelgröße damit z.B. wenn größer als 50 ist werden aktoren angesteuert
+        return output #regelgröße damit z.B. wenn größer als 50 ist werden aktoren angesteuertx
 
 
 #vielleicht noch min und max Outputoutput
