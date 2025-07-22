@@ -134,13 +134,17 @@ while True:
 
             if command == "sync":
                 serial.send("sync")
+            elif command == "getConfig":
+                data = {"profiles": plantprofile.Pflanzen_dict, "selectedPlant": plantspecies}
+                serial.send(data)
             elif command == "setProfile":
                 profile = serial.readBigData()
                 if profile["Pflanzenart"] == "manuell":
                     plantspecies = "manuell"
                     target_values = profile
                 else:
-                    plantspecies = profile["Pflanzenart"][0]
+                    plantspecies = profile["Pflanzenart"]
+                serial.send(plantspecies)
             elif command == "getMeasurements":
                 serial.send(cur_meassurements)
             else:
