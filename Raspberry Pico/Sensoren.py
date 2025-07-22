@@ -6,12 +6,13 @@ import math
 import analogio
 #abstrakte Klasse:
 class Sensor():
-        def __init__(self, name, location, unit, interval_s):
+        def __init__(self, name, location, unit, interval_s, pin):
                 self.name = name
                 self.location = location
                 self.unit = unit
                 self.interval = interval_s  #Zeitintervall in s
                 self.last_measurement = time.monotonic()  #Startet wie ticks_ms und zählt hoch in Sekunden
+                self.pin = pin
                 
 
         def measure(self): #alle Unterklassen müssen die Funktion Messen haben!

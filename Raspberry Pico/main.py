@@ -11,6 +11,7 @@ from Pflanzenprofil import *
 from SerInterface import SerialInterface
 from pid import PID 
 from hardware_setup import sensor_temp, sensor_soil, sensor_soiltemp, fan_inward, fan_outward, atomizer, pump, lampfan, sensors, heatingmat, light
+from pid_tuning import *
 
 
 #Klassenelemente erstellen
@@ -44,6 +45,9 @@ pid_soil_moisture.max_output = 100
 pid_humidity = PID(kp=1.0, ki=0.1, kd=0.05, setpoint=target_values["Luftfeuchte"]) #Sollwert Bodenfeuchtigkeit 30 Prozent
 pid_humidity.min_output = 0
 pid_humidity.max_output = 100
+
+#PID-Tuning Start
+auto_tune_pid(pid_soil_temp, sensor_temp, heatingmat, target_values["Bodentemperatur_tag"])
 
 #Setpoint = Sollwert; kp = proportional; ki = Interval nähert sich; kd achtet auf die Fehler der Zeit
 

@@ -1,7 +1,7 @@
 import board
 import digitalio
 
-#Abstrakte Klasse der Aktoren
+#Simulierte abstrakte Klasse der Aktoren
 class Actors():
         def __init__(self, name, pin):  #kein @abstractmethod, da ich ja sonst bei jeder Unterklasse nen Init deklarieren müsste
                 self.name = name
