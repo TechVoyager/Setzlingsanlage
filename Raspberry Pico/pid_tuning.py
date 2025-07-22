@@ -3,20 +3,21 @@ from hardware_setup import sensor_temp, sensor_soil, fan_inward, fan_outward, at
 from pid import PID
 
 #Konstanten werden nicht verändert! (Deshalb Großbuchstaben) START = Startpunkt, STEP = Schrittweite, MAX = Maximalwert z.B. kp in 0,1 schritten zwischen 0.0 und 2.0 
+#5x6x6 = 180 Kombinationen, Gesamtdauer = (180 * 5Sekunden) / 60 = 15 Minuten -> 5, 6, 6, sind die Kombinationen in Schritten die möglich sind.
 KP_START = 0.0
 KI_START = 0.0
 KD_START = 0.0
 
-KP_STEP = 0.1
-KI_STEP = 0.05
-KD_STEP = 0.05
+KP_STEP = 0.5
+KI_STEP = 0.1
+KD_STEP = 0.1
 
 KP_MAX = 2.0
 KI_MAX = 0.5
 KD_MAX = 0.5
 
 #in Sekunden wie lange jeder Parametersatz getestet wird
-TEST_DURATION = 10  
+TEST_DURATION = 5
 
 #Zeitintervall zw. 2 Messungen (z.B. 2 Sekunden für DHt11)
 MEASURE_INTERVALL_S = 2.0
@@ -76,7 +77,7 @@ def auto_tune_pid(pid, sensor, actuator, setpoint):
     best_error = float("inf")  #float("inf") ist eine unendlich große Zahl (kann auch mit-negativ sein) der Fehler startet unendlich groß damit man ihn direkt unterscheiden kann vom eigentlichen
     best_params = (0, 0, 0)     #anfangswerte verändern sich
 
-    #beste Kombination finden:
+    #beste Kombination finden: jeweils 3 Schleifen für jeden P,I und D Faktor
     for kp in drange(KP_START, KP_MAX, KP_STEP):
         for ki in drange(KI_START, KI_MAX, KI_STEP):
             for kd in drange(KD_START, KD_MAX, KD_STEP):
